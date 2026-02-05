@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from './lib/supabase-admin';
-import { sendMessage } from './lib/telegram-utils';
+import { supabaseAdmin } from './lib/supabase-admin.js';
+import { sendMessage } from './lib/telegram-utils.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Allow POST requests from payment providers

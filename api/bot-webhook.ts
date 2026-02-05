@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from './lib/supabase-admin';
-import { sendMessage, setChatMenuButton } from './lib/telegram-utils';
+import { supabaseAdmin } from './lib/supabase-admin.js';
+import { sendMessage, setChatMenuButton } from './lib/telegram-utils.js';
 
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 const WEBAPP_URL = 'https://makler-pro-three.vercel.app'; 
