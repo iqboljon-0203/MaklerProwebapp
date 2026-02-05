@@ -1,50 +1,96 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from './lib/supabase-admin.js';
-import { sendMessage } from './lib/telegram-utils.js';
+import { createClient } from '@supabase/supabase-js';
+import fetch from 'node-fetch';
+
+// ==========================================
+// CONFIGURATION & CLIENTS
+// ==========================================
+
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+// Supabase Admin Client
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+let supabaseAdmin: any = null;
+
+if (supabaseUrl && supabaseServiceKey) {
+  supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+
+// ==========================================
+// TELEGRAM UTILS
+// ==========================================
+
+async function sendMessage(chatId: number | string, text: string, extra?: any) {
+  if (!BOT_TOKEN) return;
+  
+  try {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: 'Markdown',
+        ...extra,
+      }),
+    });
+  } catch (error) {
+    console.error('Error sending message:', error);
+  }
+}
+
+// ==========================================
+// MAIN HANDLER
+// ==========================================
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Allow POST requests from payment providers
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    // In a real scenario, you verify the signature from Click/Payme here.
-    // Body: { telegram_id: "12345", status: "success", amount: ..., ... }
+    // Basic payload validation
     const { telegram_id, status } = req.body;
 
     if (!telegram_id) {
         return res.status(400).json({ error: 'Missing telegram_id in payload' });
     }
 
-    // Update User Status in Supabase
-    const { error } = await supabaseAdmin
-      .from('users')
-      .update({ 
-          is_premium: true,
-           // You might want to log the transaction in a 'payments' table too
-      })
-      .eq('telegram_id', String(telegram_id));
+    // Update User in Database
+    if (supabaseAdmin) {
+        const { error } = await supabaseAdmin
+        .from('users')
+        .update({
+            is_premium: true,
+        })
+        .eq('telegram_id', String(telegram_id));
 
-    if (error) {
-      console.error('Failed to update premium status:', error);
-      return res.status(500).json({ error: 'Database update failed' });
+        if (error) {
+            console.error('Failed to update premium status:', error);
+            // We continue to send success response to payment provider, but log the error
+            // Or return 500? Use 500 to signal retry
+            return res.status(500).json({ error: 'Database update failed' });
+        }
+    } else {
+        console.error('Supabase Admin NOT initialized');
+        return res.status(500).json({ error: 'System Configuration Error' });
     }
 
-    // Send Notification to User via Bot
-    try {
-        await sendMessage(telegram_id, 
-            `🎉 **Tabriklaymiz! Siz PRO darajasiga o'tdingiz.**\n\n` +
-            `Cheklovlar olib tashlandi. Barcha AI funksiyalardan bemalol foydalaning!`
-        );
-    } catch (e) {
-         console.error('Failed to send success message:', e);
-         // Don't fail the webhook response just because message failed
-    }
+    // Send Notification to User
+    await sendMessage(telegram_id, 
+        `🎉 **Tabriklaymiz! Siz PRO darajasiga o'tdingiz.**\n\nCheklovlar olib tashlandi. Barcha AI funksiyalardan bemalol foydalaning!`
+    );
 
-    return res.status(200).json({ 
-        success: true, 
-        message: 'Premium activated successfully' 
+    return res.status(200).json({
+        success: true,
+        message: 'Premium activated successfully'
     });
 
   } catch (err: any) {
