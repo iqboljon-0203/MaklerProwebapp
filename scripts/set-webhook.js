@@ -8,15 +8,22 @@ const __dirname = path.dirname(__filename);
 
 // Load env
 const envPath = path.resolve(__dirname, '../.env');
+console.log('Searching .env at:', envPath);
+
 if (fs.existsSync(envPath)) {
-    const envConfig = fs.readFileSync(envPath).toString();
+    console.log('.env found! Reading...');
+    const envConfig = fs.readFileSync(envPath, 'utf-8');
     envConfig.split('\n').forEach(line => {
         const [key, value] = line.split('=');
         if (key && value) process.env[key.trim()] = value.trim();
     });
+} else {
+    console.error('❌ .env file NOT found at:', envPath);
 }
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+console.log('Token loaded:', BOT_TOKEN ? 'YES' : 'NO'); 
+
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || 'my-secret-token-123';
 const WEBHOOK_URL = process.argv[2];
 

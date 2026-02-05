@@ -89,8 +89,8 @@ export function EnhanceEditor() {
         useHistoryStore.getState().addItem({
             type: 'image',
             title: 'Magic Fix - ' + activeImage.name,
-            thumbnail: result.preview,
-            data: result.preview,
+            thumbnail: result.preview, // Preview URL for thumbnail
+            data: result.blob, // Blob for upload!
         });
         
         addToast({

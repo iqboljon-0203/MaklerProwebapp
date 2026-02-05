@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { useTelegram } from '@/hooks';
-import { useAppStore, useUserStore } from '@/store';
+import { useAppStore, useUserStore, useHistoryStore } from '@/store';
 import { getUserProfile } from '@/services/userService';
 import { APP_NAME } from '@/constants';
 import { ProcessingOverlay } from '@/components/ui/processing-overlay';
@@ -11,7 +11,7 @@ import { SlideshowGenerator } from '@/components/features/SlideshowGenerator';
 import { AiConverter } from '@/components/features/AiConverter';
 import { Gallery } from '@/components/features/Gallery';
 
-import { Home, Wand2, Video, FileText, Menu, ChevronLeft, ArrowRight } from 'lucide-react';
+import { Wand2, Video, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
 import { MaklerLogo } from '@/components/ui/MaklerLogo';
 
 function App() {
@@ -32,6 +32,9 @@ function App() {
         if (telegramUser) {
             const profile = await getUserProfile(telegramUser);
             setUser(profile);
+            
+            // Load History
+            useHistoryStore.getState().loadHistory();
         }
     };
     initUser();
@@ -123,30 +126,9 @@ function App() {
         {renderContent()}
       </main>
 
-      {/* Floating Bottom Navigation (Glass) */}
-      {currentView === 'home' && (
-         <div className="fixed bottom-6 left-4 right-4 z-50">
-             <div className="bg-[#1E1E1E]/80 backdrop-blur-2xl border border-white/10 rounded-2xl p-2 shadow-2xl flex justify-around items-center">
-                 <NavButton icon={<Home size={22} />} label="Home" active />
-                 <NavButton icon={<Video size={22} />} label="Projects" />
-                 <NavButton icon={<Menu size={22} />} label="Menu" />
-             </div>
-         </div>
-      )}
-
       <Toaster position="top-center" theme="dark" richColors closeButton />
     </div>
   );
-}
-
-function NavButton({ icon, label, active }: any) {
-    return (
-        <button className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${active ? 'text-cyan-400' : 'text-gray-500 hover:text-gray-300'}`}>
-            {icon}
-            <span className="text-[10px] font-medium">{label}</span>
-            {active && <div className="h-1 w-1 rounded-full bg-cyan-400 mt-1 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />}
-        </button>
-    )
 }
 
 function Dashboard({ onViewChange, user }: { onViewChange: (view: any) => void, user: any }) {
