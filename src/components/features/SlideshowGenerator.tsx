@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useImageStore, useAppStore } from '@/store'; // Adjust path if needed
 import { generateSlideshow, type SlideshowProgress } from '@/services/slideshowService';
