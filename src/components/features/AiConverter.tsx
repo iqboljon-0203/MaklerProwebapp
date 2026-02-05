@@ -39,7 +39,6 @@ export function AiConverter() {
       addItem({
         type: 'text',
         title: `${platform.toUpperCase()} tavsifi`,
-        description: rawInput.slice(0, 50) + '...',
         data: result,
       });
       

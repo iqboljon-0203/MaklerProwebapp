@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { useHistoryStore, type HistoryItem } from '@/store';
+import { useHistoryStore } from '@/store';
+import { type HistoryItem } from '@/services/historyService';
 import { useTelegram } from '@/hooks';
 import { 
-  Image, Video, FileText, Trash2, Download, Share2, 
-  Clock, ChevronRight, AlertCircle 
+  Image, Video, FileText, Trash2, Download, 
+  Clock, ChevronRight 
 } from 'lucide-react';
 
 export function Gallery() {
@@ -12,33 +13,43 @@ export function Gallery() {
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
   const handleDelete = async (id: string) => {
-    hapticFeedback('warning');
+    hapticFeedback('notification', 'warning');
     const confirmed = await showConfirm("Bu elementni o'chirmoqchimisiz?");
     if (confirmed) {
-      removeItem(id);
-      hapticFeedback('success');
+      const item = items.find(i => i.id === id);
+      if (item) {
+        // Pass data (URL) for deletion from storage
+        removeItem(id, item.data);
+      } else {
+        // Fallback just in case
+        removeItem(id, ''); 
+      }
+      hapticFeedback('notification', 'success');
+      if (selectedItem?.id === id) setSelectedItem(null);
     }
   };
 
   const handleClearAll = async () => {
-    hapticFeedback('warning');
+    hapticFeedback('notification', 'warning');
     const confirmed = await showConfirm("Barcha tarixni o'chirmoqchimisiz?");
     if (confirmed) {
       clearHistory();
-      hapticFeedback('success');
+      hapticFeedback('notification', 'success');
     }
   };
 
   const handleDownload = (item: HistoryItem) => {
-    hapticFeedback('light');
+    hapticFeedback('impact', 'light');
     const link = document.createElement('a');
     link.href = item.data;
-    link.download = `maklerpro-${item.type}-${Date.now()}.${item.type === 'video' ? 'webm' : item.type === 'image' ? 'png' : 'txt'}`;
+    // Simple extension guess
+    const ext = item.type === 'video' ? 'mp4' : item.type === 'image' ? 'png' : 'txt';
+    link.download = `maklerpro-${item.title.replace(/\s+/g, '-').toLowerCase()}.${ext}`;
     link.click();
   };
 
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleDateString('uz-UZ', {
       day: 'numeric',
       month: 'short',
@@ -125,7 +136,7 @@ export function Gallery() {
         {/* Info */}
         <div className="space-y-2">
           <h3 className="text-lg font-bold text-white">{selectedItem.title}</h3>
-          <p className="text-sm text-gray-500">{formatDate(selectedItem.createdAt)}</p>
+          <p className="text-sm text-gray-500">{formatDate(selectedItem.created_at)}</p>
         </div>
 
         {/* Actions */}
@@ -176,7 +187,7 @@ export function Gallery() {
           <button
             key={item.id}
             onClick={() => {
-              hapticFeedback('light');
+              hapticFeedback('impact', 'light');
               setSelectedItem(item);
             }}
             className="group relative aspect-square rounded-2xl overflow-hidden border border-white/5 bg-[#1E1E1E] hover:border-white/20 transition-all"
