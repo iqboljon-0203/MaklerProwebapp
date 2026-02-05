@@ -48,6 +48,18 @@ export async function generateDescriptions(
 }
 
 // ===================================
+// Simple Single Platform Generator
+// ===================================
+
+export async function generateDescription(
+  rawInput: string,
+  platform: 'telegram' | 'instagram' | 'olx'
+): Promise<string> {
+  const results = await generateDescriptions({ rawInput } as any);
+  return results[platform];
+}
+
+// ===================================
 // Local Template-Based Generation (Fallback)
 // ===================================
 

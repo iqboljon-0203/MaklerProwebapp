@@ -227,3 +227,4 @@ export const useSettingsStore = create<SettingsState>()(
 );
 
 export * from './userStore';
+export * from './historyStore';

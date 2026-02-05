@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useImageStore, useAppStore } from '@/store'; // Adjust path if needed
+import { useImageStore, useAppStore, useHistoryStore } from '@/store'; // Adjust path if needed
 import { generateSlideshow, type SlideshowProgress } from '@/services/slideshowService';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -79,7 +79,18 @@ export function SlideshowGenerator() {
       const url = URL.createObjectURL(blob);
       setVideoUrl(url);
       
-      addToast({ type: 'success', title: 'Video tayyor!', message: 'Yuklab olishingiz mumkin' });
+      // Save to history
+      const reader = new FileReader();
+      reader.onloadend = () => {
+          useHistoryStore.getState().addItem({
+              type: 'video',
+              title: `Video (${sourceImages.length} ta rasm)`,
+              data: reader.result as string,
+          });
+      };
+      reader.readAsDataURL(blob);
+      
+      addToast({ type: 'success', title: 'Video tayyor!', message: 'Galereyaga saqlandi' });
       
     } catch (error) {
       console.error(error);

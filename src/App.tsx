@@ -9,6 +9,7 @@ import { ProcessingOverlay } from '@/components/ui/processing-overlay';
 import { EnhanceEditor } from '@/components/features/EnhanceEditor';
 import { SlideshowGenerator } from '@/components/features/SlideshowGenerator';
 import { AiConverter } from '@/components/features/AiConverter';
+import { Gallery } from '@/components/features/Gallery';
 
 import { Home, Wand2, Video, FileText, Menu, ChevronLeft, ArrowRight } from 'lucide-react';
 import { MaklerLogo } from '@/components/ui/MaklerLogo';
@@ -57,6 +58,8 @@ function App() {
         return <SlideshowGenerator />;
       case 'ai-convert':
         return <AiConverter />;
+      case 'gallery':
+        return <Gallery />;
       case 'home':
       default:
         return <Dashboard onViewChange={(view: any) => {
@@ -88,7 +91,8 @@ function App() {
                     {currentView === 'home' ? APP_NAME : 
                      currentView === 'enhance' ? 'Magic Fix' :
                      currentView === 'slideshow' ? 'Video Studio' :
-                     currentView === 'ai-convert' ? 'AI Writer' : APP_NAME}
+                     currentView === 'ai-convert' ? 'AI Writer' :
+                     currentView === 'gallery' ? 'Galereya' : APP_NAME}
                 </span>
             </div>
             
@@ -173,11 +177,11 @@ function Dashboard({ onViewChange, user }: { onViewChange: (view: any) => void, 
         },
         {
             id: 'gallery',
-            title: 'Gallery',
-            desc: 'Your History',
-            icon: <div className="h-8 w-8 rounded-full border-2 border-gray-600 flex items-center justify-center text-gray-400"><span className="text-xs">History</span></div>,
-            color: 'group-hover:border-gray-500/50',
-            bg: 'from-gray-800/20 to-gray-900/20'
+            title: 'Galereya',
+            desc: 'Tarixingiz',
+            icon: <div className="h-8 w-8 rounded-full border-2 border-amber-500/50 flex items-center justify-center text-amber-400"><span className="text-lg">📸</span></div>,
+            color: 'group-hover:border-amber-500/50',
+            bg: 'from-amber-500/10 to-yellow-500/5'
         }
     ];
 
@@ -244,7 +248,5 @@ function Dashboard({ onViewChange, user }: { onViewChange: (view: any) => void, 
         </div>
     )
 }
-
-
 
 export default App;

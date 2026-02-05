@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useImageStore, useAppStore } from '@/store';
+import { useImageStore, useAppStore, useHistoryStore } from '@/store';
 import { enhanceImage, getMagicFixPreset } from '@/services/imageService';
 import { BeforeAfterComparison } from '@/components/ui/before-after';
 import { Button } from '@/components/ui/button';
@@ -85,10 +85,18 @@ export function EnhanceEditor() {
         const result = await enhanceImage(activeImage, config);
         addProcessedImage(result);
         
+        // Save to history
+        useHistoryStore.getState().addItem({
+            type: 'image',
+            title: 'Magic Fix - ' + activeImage.name,
+            thumbnail: result.preview,
+            data: result.preview,
+        });
+        
         addToast({
             type: 'success',
-            title: 'Сохранено',
-            message: 'Изображение добавлено в галерею'
+            title: 'Saqlandi',
+            message: 'Rasm galereyaga qo\'shildi'
         });
         setComparisonMode(false);
         setEnhancedPreview(null);
