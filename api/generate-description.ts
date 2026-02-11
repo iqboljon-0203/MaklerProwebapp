@@ -27,15 +27,127 @@ interface ErrorResponse {
 }
 
 // ==========================================
-// DeepSeek API Configuration
+// Google Gemini API Configuration (Free Tier)
 // ==========================================
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
-const DEEPSEEK_MODEL = 'deepseek-chat'; // DeepSeek-V3
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-// ==========================================
-// Platform-Specific System Prompts
-// ==========================================
+// ... (system prompts remain same) ...
+
+// Main Handler Update
+export default async function handler(request: Request): Promise<Response> {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data',
+    'Content-Type': 'application/json',
+  };
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  if (request.method !== 'POST') {
+    const error: ErrorResponse = { error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' };
+    return new Response(JSON.stringify(error), { status: 405, headers: corsHeaders });
+  }
+
+  try {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      const error: ErrorResponse = { error: 'Al service not configured (Missing Gemini Key)', code: 'API_KEY_MISSING' };
+      return new Response(JSON.stringify(error), { status: 500, headers: corsHeaders });
+    }
+
+    // Auth
+    const initData = request.headers.get('X-Telegram-Init-Data');
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    let telegramId: string | null = null;
+
+    if (initData && botToken) {
+      const isValid = await validateTelegramWebAppData(initData, botToken);
+      if (!isValid && !isDevelopment) {
+        return new Response(JSON.stringify({ error: 'Invalid auth' }), { status: 403, headers: corsHeaders });
+      }
+      try {
+        const urlParams = new URLSearchParams(initData);
+        const userJson = urlParams.get('user');
+        if (userJson) telegramId = String(JSON.parse(userJson).id);
+      } catch {}
+    } else if (!isDevelopment) {
+      return new Response(JSON.stringify({ error: 'Auth required' }), { status: 401, headers: corsHeaders });
+    }
+
+    // Rate Limit
+    if (telegramId) {
+      const rateLimit = await checkAndIncrementUsage(telegramId);
+      if (!rateLimit.allowed) {
+        return new Response(JSON.stringify({ error: rateLimit.error }), { status: 429, headers: corsHeaders });
+      }
+    }
+
+    // Validation
+    let requestBody;
+    try {
+        requestBody = await request.json();
+    } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: corsHeaders });
+    }
+    
+    const validation = validateRequest(requestBody);
+    if (!validation.valid) {
+      return new Response(JSON.stringify({ error: validation.error }), { status: 400, headers: corsHeaders });
+    }
+
+    // Generation Logic
+    const { rawInput, platform, previousText, instruction } = validation.data;
+    const systemPrompt = SYSTEM_PROMPTS[platform];
+    
+    // Construct Gemini Prompt
+    let fullPrompt = `${systemPrompt}\n\n`;
+    
+    if (previousText && instruction) {
+        fullPrompt += `PREVIOUS TEXT:\n${previousText}\n\n`;
+        fullPrompt += `USER INSTRUCTION: Please rewrite the above post with this instruction: "${instruction}". Keep the same format and platform style.`;
+    } else {
+        fullPrompt += `USER REQUEST: Generate a ${platform.toUpperCase()} description for the following property:\n\n${rawInput}`;
+    }
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{ text: fullPrompt }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 2000,
+            }
+        }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Gemini Error:', errorText);
+        throw new Error(`Gemini API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = (data as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) throw new Error('Empty response from AI');
+
+    return new Response(JSON.stringify({ text: text.trim() }), { status: 200, headers: corsHeaders });
+
+  } catch (error: any) {
+    console.error('API Error:', error);
+    return new Response(JSON.stringify({ error: error.message || 'Internal Error' }), { status: 500, headers: corsHeaders });
+  }
+}
 
 const SYSTEM_PROMPTS: Record<Platform, string> = {
   telegram: `You are an expert Real Estate Marketing Specialist in Uzbekistan with 15+ years of experience.
@@ -262,116 +374,4 @@ function validateRequest(body: any): { valid: true; data: GenerationRequest } | 
 // Main Handler
 // ==========================================
 
-export default async function handler(request: Request): Promise<Response> {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Telegram-Init-Data',
-    'Content-Type': 'application/json',
-  };
 
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
-
-  if (request.method !== 'POST') {
-    const error: ErrorResponse = { error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' };
-    return new Response(JSON.stringify(error), { status: 405, headers: corsHeaders });
-  }
-
-  try {
-    const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
-    if (!deepseekApiKey) {
-      const error: ErrorResponse = { error: 'AI service not configured', code: 'API_KEY_MISSING' };
-      return new Response(JSON.stringify(error), { status: 500, headers: corsHeaders });
-    }
-
-    // Auth
-    const initData = request.headers.get('X-Telegram-Init-Data');
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    let telegramId: string | null = null;
-
-    if (initData && botToken) {
-      const isValid = await validateTelegramWebAppData(initData, botToken);
-      if (!isValid && !isDevelopment) {
-        return new Response(JSON.stringify({ error: 'Invalid auth' }), { status: 403, headers: corsHeaders });
-      }
-      try {
-        const urlParams = new URLSearchParams(initData);
-        const userJson = urlParams.get('user');
-        if (userJson) telegramId = String(JSON.parse(userJson).id);
-      } catch {}
-    } else if (!isDevelopment) {
-      return new Response(JSON.stringify({ error: 'Auth required' }), { status: 401, headers: corsHeaders });
-    }
-
-    // Rate Limit
-    if (telegramId) {
-      const rateLimit = await checkAndIncrementUsage(telegramId);
-      if (!rateLimit.allowed) {
-        return new Response(JSON.stringify({ error: rateLimit.error }), { status: 429, headers: corsHeaders });
-      }
-    }
-
-    // Validation
-    let requestBody;
-    try {
-        requestBody = await request.json();
-    } catch {
-        return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: corsHeaders });
-    }
-    
-    const validation = validateRequest(requestBody);
-    if (!validation.valid) {
-      return new Response(JSON.stringify({ error: validation.error }), { status: 400, headers: corsHeaders });
-    }
-
-    // Generation Logic
-    const { rawInput, platform, previousText, instruction } = validation.data;
-    const systemPrompt = SYSTEM_PROMPTS[platform];
-    
-    let messages = [
-        { role: 'system', content: systemPrompt }
-    ];
-
-    if (previousText && instruction) {
-        // REFINEMENT
-        messages.push({ role: 'assistant', content: previousText });
-        messages.push({ role: 'user', content: `Please rewrite the above post with this instruction: "${instruction}". Keep the same format and platform style.` });
-    } else {
-        // INITIAL
-        messages.push({ role: 'user', content: `Generate a ${platform.toUpperCase()} description for the following property:\n\n${rawInput}` });
-    }
-
-    const response = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${deepseekApiKey}`,
-        },
-        body: JSON.stringify({
-            model: DEEPSEEK_MODEL,
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: 2000,
-            stream: false,
-        }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`DeepSeek API Error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const text = (data as any)?.choices?.[0]?.message?.content;
-
-    if (!text) throw new Error('Empty response from AI');
-
-    return new Response(JSON.stringify({ text: text.trim() }), { status: 200, headers: corsHeaders });
-
-  } catch (error: any) {
-    console.error('API Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Internal Error' }), { status: 500, headers: corsHeaders });
-  }
-}

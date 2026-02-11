@@ -50,7 +50,7 @@
       "transition": "O'tish effekti",
       "generating": "Video yaratilmoqda..."
     },
-    "ai_writer": {
+    "ai": {
       "title": "AI Matn",
       "desc": "Tavsif Yozish",
       "action": "Yozish",
