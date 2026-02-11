@@ -182,6 +182,7 @@ bot.command('start', async (ctx) => {
 
   // 1. Deep Link: ?start=premium
   if (payload === 'premium') {
+      // @ts-ignore
       await ctx.api.sendInvoice(
           ctx.chat.id,
           "MaklerPro Premium",
@@ -234,6 +235,7 @@ bot.command('premium', async (ctx) => {
 
     // Send Invoice for Telegram Stars
     // Using ctx.api.sendInvoice for explicit argument control
+    // @ts-ignore
     await ctx.api.sendInvoice(
         ctx.chat.id,
         "MaklerPro Premium",
@@ -253,6 +255,7 @@ bot.on('callback_query:data', async (ctx) => {
         const lang = (ctx.user?.language_code || 'uz') as 'uz' | 'ru';
         const content = MESSAGES[lang] || MESSAGES['uz'];
         
+        // @ts-ignore
         await ctx.api.sendInvoice(
             ctx.chat?.id || ctx.from.id,
             "MaklerPro Premium",
@@ -360,7 +363,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Initialize bot info if needed (optional for simple commands)
-    // await bot.init();
+    await bot.init();
 
     // Handle Update
     // Vercel parses JSON body automatically
