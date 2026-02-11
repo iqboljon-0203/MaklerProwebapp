@@ -30,7 +30,10 @@ interface ErrorResponse {
 // Google Gemini API Configuration (Free Tier)
 // ==========================================
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// Google Gemini API Configuration (Free Tier)
+// ==========================================
+
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
 
 // ... (system prompts remain same) ...
 
@@ -53,7 +56,7 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   try {
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
     if (!geminiApiKey) {
       const error: ErrorResponse = { error: 'Al service not configured (Missing Gemini Key)', code: 'API_KEY_MISSING' };
       return new Response(JSON.stringify(error), { status: 500, headers: corsHeaders });
@@ -133,7 +136,18 @@ export default async function handler(request: Request): Promise<Response> {
     if (!response.ok) {
         const errorText = await response.text();
         console.error('Gemini Error:', errorText);
-        throw new Error(`Gemini API Error: ${response.status}`);
+        
+        let errorMessage = `Gemini API Error: ${response.status}`;
+        try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error && errorJson.error.message) {
+                errorMessage += ` - ${errorJson.error.message}`;
+            }
+        } catch {
+            errorMessage += ` - ${errorText.substring(0, 100)}`;
+        }
+        
+        throw new Error(errorMessage);
     }
 
     const data = await response.json();
