@@ -341,3 +341,9 @@ export function useTelegramAction() {
 
   return { executeWithFeedback };
 }
+
+// ===================================
+// Network Status Hook
+// ===================================
+
+export { useNetwork, useSlowConnection } from './useNetwork';

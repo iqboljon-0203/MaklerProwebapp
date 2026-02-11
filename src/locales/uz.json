@@ -1,0 +1,168 @@
+{
+  "common": {
+    "dashboard": "Boshqaruv Paneli",
+    "premium_badge": "PREMIUM",
+    "daily_limit": "Kunlik Limit",
+    "back": "Orqaga",
+    "open_app": "Ilovani ochish",
+    "loading": "Yuklanmoqda...",
+    "processing": "Jarayonda...",
+    "processing_count": "{{total}} tadan {{current}} tasi",
+    "offline": "Internet yo'q",
+    "select_tool": "Yaratishni boshlash uchun vositani tanlang",
+    "success": "Muvaffaqiyatli",
+    "error": "Xatolik",
+    "cancel": "Bekor qilish",
+    "confirm": "Tasdiqlash",
+    "delete": "O'chirish",
+    "save": "Saqlash",
+    "share": "Ulashish",
+    "download": "Yuklab olish",
+    "close": "Yopish",
+    "later": "Keyinroq",
+    "left": "qoldi",
+    "sum": "so'm",
+    "image": "Rasm",
+    "video": "Video",
+    "create": "Yaratish",
+    "copied": "Nusxalandi",
+    "copied_desc": "Matn clipboard'ga ko'chirildi",
+    "this_feature": "bu funksiya"
+  },
+  "modules": {
+    "magic_fix": {
+      "title": "Magic Fix",
+      "desc": "Rasm Tiniqlashtirish",
+      "action": "Tahrirlash",
+      "upload_title": "Rasmni yuklang",
+      "upload_desc": "Tiniqlashtirish uchun rasmni tanlang",
+      "processing_step": "AI rasmni qayta ishlamoqda...",
+      "before": "Oldin",
+      "after": "Keyin"
+    },
+    "video_studio": {
+      "title": "Video 9:16",
+      "desc": "Reels Generator",
+      "action": "Yaratish",
+      "select_images": "Rasmlarni tanlang",
+      "duration": "Davomiyligi",
+      "music": "Musiqa",
+      "transition": "O'tish effekti",
+      "generating": "Video yaratilmoqda..."
+    },
+    "ai_writer": {
+      "title": "AI Matn",
+      "desc": "Tavsif Yozish",
+      "action": "Yozish",
+      "input_placeholder": "Uy haqida qisqacha ma'lumot yozing (masalan: 3 xona, Chilonzor, yangi remont...)",
+      "limit_warning": "Sizda faqat {{count}} ta bepul generatsiya qoldi. PRO versiyaga o'ting cheksiz foydalanish uchun.",
+      "input_label": "Ko'chmas mulk haqida ma'lumot",
+      "enter_text": "Matn kiriting",
+      "platform": "Platforma",
+      "generate_btn": "Matn yaratish",
+      "copy_btn": "Nusxalash",
+      "copy_text": "Matnni nusxalash",
+      "success_desc": "AI tavsif yaratildi",
+      "loading": {
+        "thinking": "AI o'ylayapti...",
+        "generating": "Matn yaratilmoqda...",
+        "almost_done": "Deyarli tayyor..."
+      },
+      "share": {
+        "title": "Ulashish",
+        "telegram_opened": "Telegram ochildi!",
+        "select_chat": "Iltimos, suhbatni tanlang",
+        "copying": "Matn nusxalanmoqda...",
+        "redirecting_olx": "OLX'ga yo'naltiriladi",
+        "olx_opened": "OLX'ga yo'naltirilmoqda!",
+        "olx_desc": "Matn nusxalandi, saytda joylang",
+        "tip": "Telegram — tezkor ulashish, OLX — e'lon joylashtirish"
+      },
+      "tone": "Ohang",
+      "tone_formal": "Rasmiy",
+      "tone_engaging": "Jozibali",
+      "tone_urgent": "Shoshilinch"
+    },
+    "gallery": {
+      "title": "Galereya",
+      "items": "ta element",
+      "clear_all": "Hammasini o'chirish",
+      "confirm_clear_all": "Barcha tarixni o'chirmoqchimisiz?",
+      "confirm_delete": "Bu elementni o'chirmoqchimisiz?",
+      "desc": "Tarixingiz",
+      "action": "Ko'rish",
+      "empty": "Tarix bo'sh",
+      "empty_desc": "Siz yaratgan rasmlar, videolar va tavsiflar bu yerda saqlanadi.",
+      "delete_confirm": "Haqiqatan ham o'chirmoqchimisiz?"
+    },
+    "branding": {
+      "title": "Branding",
+      "desc": "Logo & Watermark",
+      "action": "Sozlash"
+    }
+  },
+  "premium": {
+    "limit_reached": "Limit tugadi!",
+    "limit_desc": "Kunlik 5 ta bepul generatsiya ishlatildi. PRO versiyaga o'ting va cheksiz foydalaning!",
+    "get_pro": "PRO olish",
+    "gate_title": "Premium Tarif",
+    "gate_desc": "Faqat PRO versiyada mavjud. {{feature}}ni ochish uchun PRO-ga o'ting.",
+    "gate_cta": "PRO sotib olish",
+    "upgrade_title": "PRO-ga o'ting",
+    "upgrade_desc": "Cheksiz imkoniyatlar, 4K eksport va watermarkSIZ rasmlar.",
+    "cta": "Premium olish - 49,000 so'm",
+    "features": {
+      "unlimited": "Cheksiz foydalanish",
+      "no_watermark": "Watermarksiz yuklash",
+      "high_quality": "Yuqori sifat (4K)",
+      "priority": "Tezkor ishlash",
+      "4k": "4K video eksport",
+      "watermark": "Watermark o'chirish",
+      "support": "Priority support",
+      "no_branding": "MaklerPro branding yo'q"
+    },
+    "features_desc": {
+      "unlimited": "Kunlik limitlarsiz tavsiflar yarating",
+      "watermark": "O'z logongiz bilan rasmlarni brendlang",
+      "branding_desc": "Toza professional ko'rinish",
+      "4k": "Eng yuqori sifatda videolar"
+    },
+    "modal": {
+      "subtitle": "Professional darajaga o'ting",
+      "price_month": "yoki ~${{price}} / oy",
+      "select_payment": "To'lov usulini tanlang:",
+      "coming_soon": "Tez orada",
+      "need_help": "Yordam kerakmi?",
+      "stars_alert": "⭐ Telegram Stars orqali to'lov\n\nBu funksiya tez orada ishga tushadi!\n\nHozircha @MaklerProSupport ga yozing.",
+      "contact_support": "Premium faollashtirish uchun @MaklerProSupport ga yozing."
+    },
+    "success_title": "Tabriklaymiz!",
+    "success_desc": "Siz endi PREMIUM a'zosiz."
+  },
+  "settings": {
+    "title": "Branding Sozlamalari",
+    "watermark": "Watermark",
+    "logo": "Logo",
+    "custom_text": "Maxsus Matn",
+    "position": "Joylashuv",
+    "opacity": "Tiniqlik",
+    "scale": "O'lcham",
+    "save": "Saqlash",
+    "upload_logo": "Logo yuklash",
+    "remove_logo": "Logoni o'chirish",
+    "text_placeholder": "Ism yoki Telefon raqam",
+    "positions": {
+      "top_left": "Tepa Chap",
+      "top_right": "Tepa O'ng",
+      "bottom_left": "Past Chap",
+      "bottom_right": "Past O'ng",
+      "center": "Markaz"
+    }
+  },
+  "upload": {
+    "drag_drop": "Rasmlarni shu yerga tashlang",
+    "browse": "yoki tanlash uchun bosing",
+    "max_size": "Maksimal hajmi: 15MB",
+    "supported_formats": "JPG, PNG, WEBP"
+  }
+}

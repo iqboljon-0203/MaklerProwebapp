@@ -187,3 +187,58 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ===================================
+   Skeleton Shimmer Animation
+   =================================== */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    rgb(31 41 55) 0%,
+    rgb(55 65 81) 50%,
+    rgb(31 41 55) 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* ===================================
+   Offline Banner Animation
+   =================================== */
+
+@keyframes slideDown {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+/* ===================================
+   Safe Area for Mobile
+   =================================== */
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}

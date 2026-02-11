@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { useImageStore, useAppStore, useHistoryStore } from '@/store'; // Adjust path if needed
-import { generateSlideshow, type SlideshowProgress } from '@/services/slideshowService';
+import { useImageStore, useAppStore, useHistoryStore } from '@/store';
+import { generateSlideshowLocal, type SlideshowProgress } from '@/services/slideshowServiceLocal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Play, Download, Loader2, Music, Video, Send } from 'lucide-react';
-import { useFilePicker, useImageProcessor } from '@/hooks'; // Adjust path
+import { useFilePicker, useImageProcessor } from '@/hooks';
 import { sendFileToChat, getTelegramChatId } from '@/services/telegramService';
-import type { TransitionType } from '@/types'; // Adjust imports
+import type { TransitionType } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 import { PremiumGate } from '@/components/features/PremiumGate';
 
 export function SlideshowGenerator() {
+  const { t } = useTranslation();
   const { 
     images, 
     processedImages,
@@ -23,14 +25,14 @@ export function SlideshowGenerator() {
   
   const { isProcessing, setProcessing, addToast } = useAppStore();
   
-  // ... existing logic ...
+  // Determine source images: prefer processed, fallback to original
   const sourceImages = selectedIds.length > 0 
     ? (processedImages.filter(img => selectedIds.includes(img.originalId)).length > 0
         ? processedImages.filter(img => selectedIds.includes(img.originalId))
         : images.filter(img => selectedIds.includes(img.id)))
     : (processedImages.length > 0 ? processedImages : images);
 
-  // ... state ...
+  // Video generation state
   const [duration, setDuration] = useState(3);
   const [transition, setTransition] = useState<TransitionType>('fade');
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -52,9 +54,8 @@ export function SlideshowGenerator() {
   }, [files, processFiles, clearFiles]);
 
   const handleGenerate = async () => {
-     // ... logic ...
-     if (sourceImages.length < 2) {
-      addToast({ type: 'warning', title: 'Rasmlar kam', message: 'Kamida 2 ta rasm tanlang' });
+    if (sourceImages.length < 2) {
+      addToast({ type: 'warning', title: t('common.warning'), message: t('modules.slideshow.min_images') });
       return;
     }
 
@@ -63,11 +64,12 @@ export function SlideshowGenerator() {
       setVideoUrl(null);
       setProgressState(0);
       
-      const blob = await generateSlideshow({
-        images: sourceImages as any,
+      // Use local (browser-based) video generation
+      const blob = await generateSlideshowLocal({
+        images: sourceImages,
         duration: duration,
         transition: transition,
-        transitionDuration: 1, // Default 1s transition
+        transitionDuration: 1,
         aspectRatio: '9:16',
         fps: 30,
         quality: 'medium'
@@ -84,37 +86,36 @@ export function SlideshowGenerator() {
       reader.onloadend = () => {
           useHistoryStore.getState().addItem({
               type: 'video',
-              title: `Video (${sourceImages.length} ta rasm)`,
+              title: `${t('modules.slideshow.title')} (${sourceImages.length} ${t('common.total')?.toLowerCase() || 'rasm'})`,
               data: reader.result as string,
           });
       };
       reader.readAsDataURL(blob);
       
-      addToast({ type: 'success', title: 'Video tayyor!', message: 'Galereyaga saqlandi' });
+      addToast({ type: 'success', title: t('common.success'), message: t('common.saved_gallery') });
       
     } catch (error) {
       console.error(error);
-      addToast({ type: 'error', title: 'Xatolik', message: 'Video yaratib bo\'lmadi' });
+      addToast({ type: 'error', title: t('common.error'), message: t('common.error') });
     } finally {
       setProcessing(false);
     }
   };
 
   return (
-    <PremiumGate featureName="Генератор Видео">
+    <PremiumGate featureName="Video Generator">
        <div className="flex flex-col h-full space-y-4">
-          {/* ... existing UI ... */}
           {sourceImages.length === 0 ? (
              <div className="flex flex-col items-center justify-center p-8 text-center min-h-[50vh]">
                  <div className="mb-4 rounded-full bg-primary/10 p-6">
                      <Video className="h-12 w-12 text-primary" />
                  </div>
-                 <h2 className="text-xl font-bold mb-2">Video-prezentatsiya</h2>
+                 <h2 className="text-xl font-bold mb-2">{t('modules.slideshow.title')}</h2>
                  <p className="text-muted-foreground mb-6 max-w-sm">
-                     Rasmlaringizdan 9:16 formatidagi video (Reels/Stories) yarating.
+                     {t('modules.slideshow.desc')}
                  </p>
                   <Button onClick={openPicker} size="lg" className="rounded-full">
-                     Rasmlarni tanlash
+                     {t('modules.magic_fix.upload_title')}
                  </Button>
              </div>
           ) : (
@@ -138,7 +139,7 @@ export function SlideshowGenerator() {
                                     <span>Pro-Tip:</span>
                                 </div>
                                 <p className="opacity-90 leading-tight text-xs">
-                                  Instagram/TikTok uchun musiqa qo'shib videoni trendga olib chiqing!
+                                  {t('modules.slideshow.protip')}
                                 </p>
                             </div>
                          </div>
@@ -156,8 +157,8 @@ export function SlideshowGenerator() {
                         ) : (
                             <>
                                 <Play className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                <p>"Yaratish" tugmasini bosing</p>
-                                <p className="text-xs mt-2 opacity-60">{sourceImages.length} rasm tanlandi</p>
+                                <p>{t('modules.slideshow.generate')}</p>
+                                <p className="text-xs mt-2 opacity-60">{sourceImages.length} {t('common.selected_images') || 'rasm'}</p>
                             </>
                         )}
                     </div>
@@ -168,7 +169,7 @@ export function SlideshowGenerator() {
               <Card className="p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label>Davomiylik (sek/kadr)</Label>
+                        <Label>{t('modules.slideshow.duration')}</Label>
                         <div className="flex items-center gap-2">
                             <Slider 
                                 value={[duration]} 
@@ -183,16 +184,16 @@ export function SlideshowGenerator() {
                     </div>
                     
                     <div className="space-y-2">
-                        <Label>O'tish effekti</Label>
+                        <Label>{t('modules.slideshow.transition')}</Label>
                         <Select value={transition} onValueChange={(v: TransitionType) => setTransition(v)}>
                             <SelectTrigger>
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="fade">Xiralashish (Fade)</SelectItem>
-                                <SelectItem value="slide-left">Chapga siljish</SelectItem>
-                                <SelectItem value="zoom-in">Yaqinlashtirish (Zoom)</SelectItem>
-                                <SelectItem value="none">Effektsiz</SelectItem>
+                                <SelectItem value="fade">{t('modules.slideshow.fade')}</SelectItem>
+                                <SelectItem value="slide-left">{t('modules.slideshow.slide_left')}</SelectItem>
+                                <SelectItem value="zoom-in">{t('modules.slideshow.zoom')}</SelectItem>
+                                <SelectItem value="none">{t('modules.slideshow.none')}</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -204,7 +205,7 @@ export function SlideshowGenerator() {
                     onClick={handleGenerate}
                     disabled={isProcessing}
                 >
-                    {isProcessing ? 'Yaratilmoqda...' : (videoUrl ? 'Qayta yaratish' : 'Video yaratish (9:16)')}
+                    {isProcessing ? t('common.processing') : (videoUrl ? t('common.regenerate') : t('modules.slideshow.generate'))}
                 </Button>
                 
                 {videoUrl && (
@@ -220,7 +221,7 @@ export function SlideshowGenerator() {
                             }}
                         >
                             <Download className="mr-2 h-4 w-4" />
-                            Yuklab olish
+                            {t('common.download')}
                         </Button>
                         
                         <Button 
@@ -235,18 +236,18 @@ export function SlideshowGenerator() {
                                     
                                     if (!chatId) {
                                         // Specific toast for missing Chat ID (Web vs Telegram)
-                                        toast.error("Identifikatsiya xatosi", {
-                                            description: "Iltimos, ilovani Telegram Bot orqali oching"
+                                        toast.error(t('common.error'), {
+                                            description: "Iltimos, ilovani Telegram Bot orqali oching" // TODO: translate
                                         });
                                         return;
                                     }
 
-                                    addToast({ type: 'info', title: 'Yuborilmoqda...', message: 'Video botga yuklanmoqda...' });
+                                    addToast({ type: 'info', title: t('common.processing'), message: 'Video botga yuklanmoqda...' });
                                     
                                     // sendFileToChat throws if error occurs
                                     await sendFileToChat(blob, `video-${Date.now()}.webm`, chatId);
                                     
-                                    addToast({ type: 'success', title: 'Muvaffaqiyatli!', message: 'Video botga yuborildi' });
+                                    addToast({ type: 'success', title: t('common.success'), message: 'Video botga yuborildi' });
 
                                 } catch (e: any) {
                                     if (e.message === 'BOT_NOT_STARTED') {
@@ -267,7 +268,7 @@ export function SlideshowGenerator() {
                                             duration: 8000,
                                         });
                                     } else {
-                                        addToast({ type: 'error', title: 'Xatolik', message: 'Fayl yuborilmadi' });
+                                        addToast({ type: 'error', title: t('common.error'), message: 'Fayl yuborilmadi' });
                                     }
                                 } finally {
                                     setProcessing(false);

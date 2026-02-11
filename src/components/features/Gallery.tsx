@@ -6,15 +6,17 @@ import {
   Image, Video, FileText, Trash2, Download, 
   Clock, ChevronRight 
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function Gallery() {
+  const { t, i18n } = useTranslation();
   const { items, removeItem, clearHistory } = useHistoryStore();
   const { hapticFeedback, showConfirm } = useTelegram();
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
   const handleDelete = async (id: string) => {
     hapticFeedback('notification', 'warning');
-    const confirmed = await showConfirm("Bu elementni o'chirmoqchimisiz?");
+    const confirmed = await showConfirm(t('modules.gallery.confirm_delete'));
     if (confirmed) {
       const item = items.find(i => i.id === id);
       if (item) {
@@ -31,7 +33,7 @@ export function Gallery() {
 
   const handleClearAll = async () => {
     hapticFeedback('notification', 'warning');
-    const confirmed = await showConfirm("Barcha tarixni o'chirmoqchimisiz?");
+    const confirmed = await showConfirm(t('modules.gallery.confirm_clear_all'));
     if (confirmed) {
       clearHistory();
       hapticFeedback('notification', 'success');
@@ -50,7 +52,7 @@ export function Gallery() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('uz-UZ', {
+    return date.toLocaleDateString(i18n.language, {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -72,11 +74,11 @@ export function Gallery() {
   const getTypeLabel = (type: HistoryItem['type']) => {
     switch (type) {
       case 'image':
-        return 'Rasm';
+        return t('common.image');
       case 'video':
-        return 'Video';
+        return t('common.video');
       case 'text':
-        return 'Tavsif';
+        return t('modules.ai.title'); // AI Tavsif
     }
   };
 
@@ -87,9 +89,9 @@ export function Gallery() {
         <div className="p-6 rounded-full bg-gray-800/50 mb-6">
           <Clock className="h-12 w-12 text-gray-500" />
         </div>
-        <h2 className="text-xl font-bold text-gray-300 mb-2">Tarix bo'sh</h2>
+        <h2 className="text-xl font-bold text-gray-300 mb-2">{t('modules.gallery.empty')}</h2>
         <p className="text-gray-500 text-sm leading-relaxed">
-          Siz yaratgan rasmlar, videolar va tavsiflar bu yerda saqlanadi.
+          {t('modules.gallery.empty_desc')}
         </p>
       </div>
     );
@@ -105,7 +107,7 @@ export function Gallery() {
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
         >
           <ChevronRight className="h-4 w-4 rotate-180" />
-          <span className="text-sm">Orqaga</span>
+          <span className="text-sm">{t('common.back')}</span>
         </button>
 
         {/* Preview */}
@@ -146,7 +148,7 @@ export function Gallery() {
             className="flex-1 py-3 rounded-xl bg-cyan-500/20 text-cyan-400 font-medium flex items-center justify-center gap-2 hover:bg-cyan-500/30 transition-colors"
           >
             <Download className="h-5 w-5" />
-            Yuklab olish
+            {t('common.download')}
           </button>
           <button
             onClick={() => handleDelete(selectedItem.id)}
@@ -166,9 +168,9 @@ export function Gallery() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Galereya
+            {t('modules.gallery.title')}
           </h1>
-          <p className="text-gray-500 text-sm">{items.length} ta element</p>
+          <p className="text-gray-500 text-sm">{items.length} {t('modules.gallery.items')}</p>
         </div>
         
         {items.length > 0 && (
@@ -176,7 +178,7 @@ export function Gallery() {
             onClick={handleClearAll}
             className="text-xs text-red-400/70 hover:text-red-400 transition-colors"
           >
-            Hammasini o'chirish
+            {t('modules.gallery.clear_all')}
           </button>
         )}
       </div>

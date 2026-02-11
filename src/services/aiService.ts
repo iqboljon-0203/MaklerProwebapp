@@ -1,62 +1,304 @@
 import type { PropertyDetails, GeneratedDescriptions, Platform } from '@/types';
+import { useUserStore } from '@/store';
 
 // ===================================
 // AI Description Service
 // ===================================
 
 const API_ENDPOINT = '/api/generate-description';
+const REQUEST_TIMEOUT = 30000;
+const MAX_FREE_GENERATIONS = 5;
+
+// ===================================
+// Custom Error Types
+// ===================================
+
+export class LimitExceededError extends Error {
+  readonly code = 'LIMIT_EXCEEDED' as const;
+  readonly remainingGenerations: number;
+  
+  constructor(message: string, remainingGenerations: number = 0) {
+    super(message);
+    this.name = 'LimitExceededError';
+    this.remainingGenerations = remainingGenerations;
+  }
+}
+
+export class AIServiceError extends Error {
+  readonly code: string;
+  
+  constructor(message: string, code: string = 'AI_ERROR') {
+    super(message);
+    this.name = 'AIServiceError';
+    this.code = code;
+  }
+}
+
+export class NetworkError extends Error {
+  readonly code = 'NETWORK_ERROR' as const;
+  
+  constructor(message: string = 'Tarmoq xatosi. Internet aloqasini tekshiring.') {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+// ===================================
+// Response Types
+// ===================================
+
+interface APISuccessResponse {
+  text: string;
+}
+
+interface APIErrorResponse {
+  error: string;
+  code?: string;
+}
+
+// ===================================
+// Result Type (for type-safe error handling)
+// ===================================
+
+export type GenerationResult = 
+  | { success: true; text: string }
+  | { success: false; error: LimitExceededError | AIServiceError | NetworkError };
+
+// ===================================
+// Limit Validation
+// ===================================
+
+interface LimitCheckResult {
+  canGenerate: boolean;
+  isPremium: boolean;
+  dailyGenerations: number;
+  remainingGenerations: number;
+}
+
+function checkUserLimit(): LimitCheckResult {
+  const { user } = useUserStore.getState();
+  
+  const isPremium = user.isPremium;
+  const dailyGenerations = user.dailyGenerations;
+  const maxGenerations = user.maxDailyGenerations || MAX_FREE_GENERATIONS;
+  const remainingGenerations = Math.max(0, maxGenerations - dailyGenerations);
+  
+  // Premium users have unlimited access
+  if (isPremium) {
+    return {
+      canGenerate: true,
+      isPremium: true,
+      dailyGenerations,
+      remainingGenerations: Infinity
+    };
+  }
+  
+  // Free users have daily limit
+  const canGenerate = dailyGenerations < maxGenerations;
+  
+  return {
+    canGenerate,
+    isPremium: false,
+    dailyGenerations,
+    remainingGenerations
+  };
+}
+
+// ===================================
+// Increment Local Usage Counter
+// ===================================
+
+function incrementLocalUsage(): void {
+  const { user, setUser } = useUserStore.getState();
+  
+  // Don't increment for premium users
+  if (user.isPremium) return;
+  
+  setUser({
+    dailyGenerations: user.dailyGenerations + 1
+  });
+}
+
+// ===================================
+// Single Platform Generator (DeepSeek API)
+// ===================================
+
+export async function generateDescription(
+  rawInput: string,
+  platform: Platform
+): Promise<string> {
+  // 1. CHECK LIMIT BEFORE API CALL
+  const limitCheck = checkUserLimit();
+  
+  if (!limitCheck.canGenerate) {
+    throw new LimitExceededError(
+      `Kunlik limit tugadi (${MAX_FREE_GENERATIONS}/${MAX_FREE_GENERATIONS}). Premium ga o'ting cheksiz foydalanish uchun!`,
+      limitCheck.remainingGenerations
+    );
+  }
+  
+  // 2. PREPARE REQUEST
+  const initData = (window as any).Telegram?.WebApp?.initData || '';
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+  try {
+    // 3. MAKE API REQUEST
+    const response = await fetch(API_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': initData
+      },
+      body: JSON.stringify({ rawInput, platform }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
+    // 4. PARSE RESPONSE
+    let data: APISuccessResponse | APIErrorResponse;
+    try {
+      data = await response.json();
+    } catch {
+      throw new AIServiceError('Invalid response from server', 'PARSE_ERROR');
+    }
+
+    // 5. HANDLE ERROR RESPONSES
+    if (!response.ok) {
+      const errorData = data as APIErrorResponse;
+      
+      // Handle rate limit from backend (double-check)
+      if (errorData.code === 'RATE_LIMIT_EXCEEDED') {
+        throw new LimitExceededError(
+          errorData.error || 'Kunlik limit tugadi',
+          0
+        );
+      }
+      
+      throw new AIServiceError(
+        errorData.error || 'AI xizmatida xatolik',
+        errorData.code || 'API_ERROR'
+      );
+    }
+
+    // 6. SUCCESS - INCREMENT LOCAL COUNTER
+    incrementLocalUsage();
+
+    // 7. RETURN GENERATED TEXT
+    const successData = data as APISuccessResponse;
+    return successData.text;
+
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+    
+    // Re-throw our custom errors
+    if (error instanceof LimitExceededError) throw error;
+    if (error instanceof AIServiceError) throw error;
+    if (error instanceof NetworkError) throw error;
+    
+    // Handle abort/timeout
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new NetworkError('Sorov vaqti tugadi. Iltimos qaytadan urinib koring.');
+    }
+    
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new NetworkError('Serverga ulanib bolmadi. Internet aloqasini tekshiring.');
+    }
+    
+    // Unknown errors
+    const message = error instanceof Error ? error.message : 'Noma\'lum xatolik';
+    throw new AIServiceError(message, 'UNKNOWN_ERROR');
+  }
+}
+
+// ===================================
+// Safe Generator (Returns Result Object)
+// ===================================
+
+export async function generateDescriptionSafe(
+  rawInput: string,
+  platform: Platform
+): Promise<GenerationResult> {
+  try {
+    const text = await generateDescription(rawInput, platform);
+    return { success: true, text };
+  } catch (error) {
+    if (error instanceof LimitExceededError) {
+      return { success: false, error };
+    }
+    if (error instanceof AIServiceError) {
+      return { success: false, error };
+    }
+    if (error instanceof NetworkError) {
+      return { success: false, error };
+    }
+    return { 
+      success: false, 
+      error: new AIServiceError('Noma\'lum xatolik', 'UNKNOWN_ERROR') 
+    };
+  }
+}
+
+// ===================================
+// Multi-Platform Generator (Legacy Support)
+// ===================================
 
 export async function generateDescriptions(
-  details: PropertyDetails
+  details: PropertyDetails | { rawInput: string }
 ): Promise<GeneratedDescriptions> {
+  // Check limit once before any requests
+  const limitCheck = checkUserLimit();
+  
+  if (!limitCheck.canGenerate) {
+    throw new LimitExceededError(
+      `Kunlik limit tugadi. Premium ga o'ting!`,
+      limitCheck.remainingGenerations
+    );
+  }
+  
   try {
-    const initData = (window as any).Telegram?.WebApp?.initData || '';
+    const rawInput: string = ('rawInput' in details && details.rawInput) 
+      ? details.rawInput 
+      : JSON.stringify(details);
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout (Vercel Edge limit is generous, but we want UI feedback)
+    const [telegram, instagram, olx] = await Promise.all([
+      generateDescription(rawInput, 'telegram').catch(() => generateLocalFallback(rawInput, 'telegram')),
+      generateDescription(rawInput, 'instagram').catch(() => generateLocalFallback(rawInput, 'instagram')),
+      generateDescription(rawInput, 'olx').catch(() => generateLocalFallback(rawInput, 'olx')),
+    ]);
 
-    try {
-      const response = await fetch(API_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Telegram-Init-Data': initData
-        },
-        body: JSON.stringify(details),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error('Failed to generate descriptions');
-      }
-
-      return await response.json();
-    } catch (error: any) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-            throw new Error('Request timed out. Please try again.');
-        }
-        throw error;
-    }
+    return { telegram, instagram, olx };
   } catch (error) {
+    // Re-throw limit errors
+    if (error instanceof LimitExceededError) throw error;
+    
     console.error('AI generation error:', error);
-    // Fallback to local template generation
     return generateLocalDescriptions(details);
   }
 }
 
 // ===================================
-// Simple Single Platform Generator
+// Get Current Usage Status
 // ===================================
 
-export async function generateDescription(
-  rawInput: string,
-  platform: 'telegram' | 'instagram' | 'olx'
-): Promise<string> {
-  const results = await generateDescriptions({ rawInput } as any);
-  return results[platform];
+export function getUsageStatus(): LimitCheckResult {
+  return checkUserLimit();
+}
+
+// ===================================
+// Local Fallback for Single Platform
+// ===================================
+
+function generateLocalFallback(rawInput: string, platform: Platform): string {
+  const fallbacks: Record<Platform, string> = {
+    telegram: `🔥 **Yangi taklif!**\n\n${rawInput}\n\n📞 Hoziroq qongiroq qiling!`,
+    instagram: `📍 Yangi elon!\n\n${rawInput}\n\n#kochmasmulk #toshkent #makler`,
+    olx: `Kochmas mulk sotiladi.\n\n${rawInput}\n\nBatafsil malumot uchun boglaning.`,
+  };
+  return fallbacks[platform];
 }
 
 // ===================================
@@ -64,7 +306,6 @@ export async function generateDescription(
 // ===================================
 
 function generateLocalDescriptions(details: PropertyDetails | { rawInput: string }): GeneratedDescriptions {
-  // Handle Raw Input Fallback
   if ('rawInput' in details && details.rawInput) {
     const raw = details.rawInput;
     return {
@@ -74,7 +315,6 @@ function generateLocalDescriptions(details: PropertyDetails | { rawInput: string
     };
   }
   
-  // Cast to full details for structural generation
   const d = details as PropertyDetails;
 
   const {
@@ -101,9 +341,7 @@ function generateLocalDescriptions(details: PropertyDetails | { rawInput: string
   const typeLabel = propertyTypeLabels[type] || '🏠 Недвижимость';
   const priceFormatted = new Intl.NumberFormat('ru-RU').format(price);
   const floorInfo = floor && totalFloors ? `${floor}/${totalFloors} этаж` : '';
-  const featuresText = features.length > 0 ? features.join(', ') : '';
 
-  // Telegram format (can use Markdown)
   const telegram = `
 ${typeLabel}
 
@@ -115,14 +353,13 @@ ${floorInfo ? `🏗 Этаж: ${floorInfo}` : ''}
 
 💰 **Цена: ${priceFormatted} ${currency}**
 
-${featuresText ? `✨ Особенности:\n${features.map(f => `• ${f}`).join('\n')}` : ''}
+${features?.length > 0 ? `✨ Особенности:\n${features.map(f => `• ${f}`).join('\n')}` : ''}
 
 ${description ? `📝 ${description}` : ''}
 
 📞 Связаться с риелтором 👇
 `.trim();
 
-  // Instagram format (clean, with emojis but no markdown)
   const instagram = `
 ${typeLabel.split(' ')[0]} ${rooms}-комнатная ${type === 'apartment' ? 'квартира' : type === 'house' ? 'дом' : 'недвижимость'}
 
@@ -130,7 +367,7 @@ ${typeLabel.split(' ')[0]} ${rooms}-комнатная ${type === 'apartment' ? 
 📐 ${area} м² ${floorInfo ? `| ${floorInfo}` : ''}
 💰 ${priceFormatted} ${currency}
 
-${features.slice(0, 5).map(f => `✓ ${f}`).join('\n')}
+${features?.slice(0, 5).map(f => `✓ ${f}`).join('\n') || ''}
 
 ${description ? description.slice(0, 200) + (description.length > 200 ? '...' : '') : ''}
 
@@ -139,7 +376,6 @@ ${description ? description.slice(0, 200) + (description.length > 200 ? '...' : 
 #недвижимость #продажа #${type} #${location.split(',')[0].replace(/\s/g, '')} #риелтор #maklerPro
 `.trim();
 
-  // OLX format (structured, formal)
   const olx = `
 ${rooms}-комнатная ${type === 'apartment' ? 'квартира' : type === 'house' ? 'дом' : 'недвижимость'} - ${location}
 
@@ -148,7 +384,7 @@ ${rooms}-комнатная ${type === 'apartment' ? 'квартира' : type =
 • Общая площадь: ${area} м²
 ${floorInfo ? `• Этаж: ${floorInfo}` : ''}
 
-${features.length > 0 ? `Дополнительно:\n${features.map(f => `• ${f}`).join('\n')}` : ''}
+${features?.length > 0 ? `Дополнительно:\n${features.map(f => `• ${f}`).join('\n')}` : ''}
 
 ${description ? `\nОписание:\n${description}` : ''}
 
@@ -168,8 +404,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
-  } catch (error) {
-    // Fallback for older browsers
+  } catch {
     const textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';

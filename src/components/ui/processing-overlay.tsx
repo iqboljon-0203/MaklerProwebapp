@@ -1,7 +1,9 @@
 import { useAppStore } from '@/store';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function ProcessingOverlay() {
+  const { t } = useTranslation();
   const { isProcessing, progress } = useAppStore();
 
   if (!isProcessing) return null;
@@ -16,7 +18,7 @@ export function ProcessingOverlay() {
         
         <div className="text-center space-y-2 w-full">
             <h3 className="font-semibold text-lg animate-pulse">
-                {progress.message || 'Обработка...'}
+                {progress.message || t('common.processing')}
             </h3>
             
             {/* Progress Bar */}
@@ -28,7 +30,7 @@ export function ProcessingOverlay() {
             </div>
             
             <p className="text-sm text-muted-foreground">
-                {progress.current} из {progress.total}
+                {t('common.processing_count', { current: progress.current, total: progress.total })}
             </p>
         </div>
       </div>

@@ -1,4 +1,10 @@
-import imageCompression from 'browser-image-compression';
+import { 
+  resizeImage, 
+  createImageFromFile, 
+  loadImage, 
+  createCanvas, 
+  canvasToBlob 
+} from '@/utils/image';
 import type { 
   ImageFile, 
   ProcessedImage, 
@@ -15,14 +21,8 @@ export async function compressImage(
   file: File,
   config: CompressionConfig
 ): Promise<Blob> {
-  const options = {
-    maxWidthOrHeight: Math.max(config.maxWidth, config.maxHeight),
-    initialQuality: config.quality,
-    fileType: `image/${config.format}` as const,
-    useWebWorker: true,
-  };
-
-  return await imageCompression(file, options);
+  // Use the new centralized resize utility
+  return await resizeImage(file, config);
 }
 
 export async function processImagesInQueue(
@@ -118,77 +118,22 @@ export async function processImagesInQueue(
 // Image Loading Utilities
 // ===================================
 
-export function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-export function createImageFromFile(file: File): Promise<ImageFile> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = async (e) => {
-      const preview = e.target?.result as string;
-      
-      try {
-        const img = await loadImage(preview);
-        
-        resolve({
-          id: crypto.randomUUID(),
-          file,
-          preview,
-          width: img.width,
-          height: img.height,
-          size: file.size,
-          name: file.name,
-          type: file.type,
-        });
-      } catch (error) {
-        reject(error);
-      }
-    };
-    
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+// NOTE: Specific helpers moved to @/utils/image/resizeImage.ts, but keeping
+// aliases here if other files imported them from imageService.ts.
+// Best practice would be to update imports in other files, but for now we re-export isn't trivial 
+// without module structure changes, so we just use the imported ones.
+// (Actually, enhanceImage below uses them, so we need them "available" in this scope, 
+// which they are via the top-level import).
 
 // ===================================
 // Canvas Utilities
 // ===================================
 
-export function createCanvas(
-  width: number, 
-  height: number
-): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
-  return { canvas, ctx };
-}
+// ===================================
+// Canvas Utilities
+// ===================================
 
-export function canvasToBlob(
-  canvas: HTMLCanvasElement,
-  format: 'webp' | 'jpeg' | 'png' = 'webp',
-  quality: number = 0.9
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Failed to create blob'));
-      },
-      `image/${format}`,
-      quality
-    );
-  });
-}
+// createCanavs and canvasToBlob are imported from @/utils/image
 
 // ===================================
 // Watermark Service
@@ -415,10 +360,6 @@ export async function enhanceImage(
   };
 }
 
-// ===================================
-// Auto Enhancement Preset (Magic Fix)
-// ===================================
-
 export function getMagicFixPreset(): EnhancementConfig {
   return {
     brightness: 10,
@@ -426,4 +367,672 @@ export function getMagicFixPreset(): EnhancementConfig {
     saturation: 30,
     sharpness: 0,
   };
+}
+
+// ===================================
+// Batch Processing Types
+// ===================================
+
+export interface BatchImageResult {
+  imageId: string;
+  imageName: string;
+  status: 'pending' | 'processing' | 'success' | 'error';
+  result?: ProcessedImage;
+  error?: string;
+}
+
+export interface BatchProgress {
+  total: number;
+  completed: number;
+  successful: number;
+  failed: number;
+  currentImageName: string;
+  results: BatchImageResult[];
+}
+
+export type BatchProgressCallback = (progress: BatchProgress) => void;
+
+// ===================================
+// Concurrency Control Queue
+// ===================================
+
+class ConcurrencyQueue {
+  private queue: (() => Promise<void>)[] = [];
+  private running = 0;
+  private maxConcurrent: number;
+
+  constructor(maxConcurrent: number = 3) {
+    this.maxConcurrent = maxConcurrent;
+  }
+
+  async add<T>(task: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const execute = async () => {
+        this.running++;
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.running--;
+          this.processNext();
+        }
+      };
+
+      if (this.running < this.maxConcurrent) {
+        execute();
+      } else {
+        this.queue.push(execute);
+      }
+    });
+  }
+
+  private processNext() {
+    if (this.queue.length > 0 && this.running < this.maxConcurrent) {
+      const next = this.queue.shift();
+      next?.();
+    }
+  }
+}
+
+// ===================================
+// Batch Image Enhancement (Parallel with Concurrency Control)
+// ===================================
+
+/**
+ * Process multiple images in parallel with concurrency control.
+ * Safe for mobile devices - limits concurrent canvas operations.
+ * 
+ * @param images - Array of ImageFile objects to process
+ * @param config - Enhancement configuration
+ * @param onProgress - Callback for progress updates
+ * @param maxConcurrent - Maximum number of concurrent operations (default: 3)
+ * @returns Array of BatchImageResult
+ */
+export async function processImagesBatch(
+  images: ImageFile[],
+  config: EnhancementConfig,
+  onProgress?: BatchProgressCallback,
+  maxConcurrent: number = 3
+): Promise<BatchImageResult[]> {
+  const queue = new ConcurrencyQueue(maxConcurrent);
+  const results: BatchImageResult[] = images.map(img => ({
+    imageId: img.id,
+    imageName: img.name,
+    status: 'pending' as const,
+  }));
+
+  const progress: BatchProgress = {
+    total: images.length,
+    completed: 0,
+    successful: 0,
+    failed: 0,
+    currentImageName: '',
+    results,
+  };
+
+  // Notify initial state
+  onProgress?.(progress);
+
+  // Create processing tasks
+  const tasks = images.map((image, index) => {
+    return queue.add(async () => {
+      // Update status to processing
+      results[index].status = 'processing';
+      progress.currentImageName = image.name;
+      onProgress?.({ ...progress, results: [...results] });
+
+      try {
+        // Process the image
+        const processed = await enhanceImage(image, config);
+        
+        // Update result
+        results[index].status = 'success';
+        results[index].result = processed;
+        progress.successful++;
+        
+      } catch (error) {
+        // Handle individual image failure
+        console.error(`Failed to process ${image.name}:`, error);
+        results[index].status = 'error';
+        results[index].error = error instanceof Error ? error.message : 'Unknown error';
+        progress.failed++;
+      } finally {
+        progress.completed++;
+        onProgress?.({ ...progress, results: [...results] });
+      }
+    });
+  });
+
+  // Wait for all tasks to complete
+  await Promise.allSettled(tasks);
+
+  // Final progress update
+  progress.currentImageName = '';
+  onProgress?.({ ...progress, results: [...results] });
+
+  return results;
+}
+
+// ===================================
+// Batch Processing with Full Pipeline (Compress + Enhance + Watermark)
+// ===================================
+
+export interface BatchPipelineOptions {
+  compression?: CompressionConfig;
+  enhancement?: EnhancementConfig;
+  watermark?: WatermarkConfig;
+  isPremium?: boolean;
+}
+
+export async function processBatchPipeline(
+  images: ImageFile[],
+  options: BatchPipelineOptions,
+  onProgress?: BatchProgressCallback,
+  maxConcurrent: number = 3
+): Promise<BatchImageResult[]> {
+  const queue = new ConcurrencyQueue(maxConcurrent);
+  const results: BatchImageResult[] = images.map(img => ({
+    imageId: img.id,
+    imageName: img.name,
+    status: 'pending' as const,
+  }));
+
+  const progress: BatchProgress = {
+    total: images.length,
+    completed: 0,
+    successful: 0,
+    failed: 0,
+    currentImageName: '',
+    results,
+  };
+
+  onProgress?.(progress);
+
+  const tasks = images.map((image, index) => {
+    return queue.add(async () => {
+      results[index].status = 'processing';
+      progress.currentImageName = image.name;
+      onProgress?.({ ...progress, results: [...results] });
+
+      try {
+        let currentImage = image;
+        let finalResult: ProcessedImage | undefined;
+
+        // Step 1: Compression (if configured)
+        if (options.compression) {
+          const compressedBlob = await compressImage(image.file, options.compression);
+          const compressedFile = new File([compressedBlob], image.name, { type: compressedBlob.type });
+          currentImage = await createImageFromFile(compressedFile);
+        }
+
+        // Step 2: Enhancement (if configured)
+        if (options.enhancement) {
+          finalResult = await enhanceImage(currentImage, options.enhancement);
+          // Update currentImage for next step
+          currentImage = {
+            ...currentImage,
+            preview: finalResult.preview,
+            width: finalResult.width,
+            height: finalResult.height,
+          };
+        }
+
+        // Step 3: Watermark (if configured or forced for non-premium)
+        if (options.watermark || !options.isPremium) {
+          const wmConfig = options.watermark || {
+            text: '',
+            position: 'center' as const,
+            fontSize: 20,
+            opacity: 0,
+            color: '#000',
+            fontFamily: 'Arial',
+            rotation: 0,
+          };
+          finalResult = await applyWatermark(currentImage, wmConfig, options.isPremium);
+        }
+
+        // If no processing, create a basic ProcessedImage from original
+        if (!finalResult) {
+          const blob = await fetch(currentImage.preview).then(r => r.blob());
+          finalResult = {
+            id: crypto.randomUUID(),
+            originalId: image.id,
+            blob,
+            preview: currentImage.preview,
+            width: currentImage.width,
+            height: currentImage.height,
+            size: blob.size,
+          };
+        }
+
+        results[index].status = 'success';
+        results[index].result = finalResult;
+        progress.successful++;
+
+      } catch (error) {
+        console.error(`Failed to process ${image.name}:`, error);
+        results[index].status = 'error';
+        results[index].error = error instanceof Error ? error.message : 'Unknown error';
+        progress.failed++;
+      } finally {
+        progress.completed++;
+        onProgress?.({ ...progress, results: [...results] });
+      }
+    });
+  });
+
+  await Promise.allSettled(tasks);
+
+  progress.currentImageName = '';
+  onProgress?.({ ...progress, results: [...results] });
+
+  return results;
+}
+
+// ===================================
+// Utility: Get Batch Summary
+// ===================================
+
+export function getBatchSummary(results: BatchImageResult[]): {
+  total: number;
+  successful: number;
+  failed: number;
+  successRate: number;
+} {
+  const total = results.length;
+  const successful = results.filter(r => r.status === 'success').length;
+  const failed = results.filter(r => r.status === 'error').length;
+  const successRate = total > 0 ? (successful / total) * 100 : 0;
+
+  return { total, successful, failed, successRate };
+}
+
+// ===================================
+// Custom PNG Watermark Types
+// ===================================
+
+import type { CustomWatermarkSettings, WatermarkPosition } from '@/types';
+
+export interface CustomWatermarkConfig {
+  logoUrl?: string;
+  textWatermark?: {
+    name: string;
+    phone: string;
+  };
+  settings: CustomWatermarkSettings;
+  isPremium?: boolean;
+}
+
+// ===================================
+// Apply Custom PNG Watermark
+// ===================================
+
+/**
+ * Applies a custom PNG watermark logo to an image.
+ * Supports auto-scaling, positioning, and opacity.
+ */
+export async function applyCustomWatermark(
+  imageFile: ImageFile,
+  config: CustomWatermarkConfig
+): Promise<ProcessedImage> {
+  const img = await loadImage(imageFile.preview);
+  const { canvas, ctx } = createCanvas(img.width, img.height);
+  
+  // Draw original image
+  ctx.drawImage(img, 0, 0);
+  
+  const { settings, logoUrl, textWatermark, isPremium } = config;
+  
+  if (!settings.enabled) {
+    // Return original if watermark disabled
+    const blob = await canvasToBlob(canvas, 'webp', 0.9);
+    return {
+      id: crypto.randomUUID(),
+      originalId: imageFile.id,
+      blob,
+      preview: URL.createObjectURL(blob),
+      width: img.width,
+      height: img.height,
+      size: blob.size,
+    };
+  }
+
+  // Apply logo watermark
+  if ((settings.type === 'logo' || settings.type === 'both') && logoUrl) {
+    await drawLogoWatermark(ctx, logoUrl, img.width, img.height, settings);
+  }
+  
+  // Apply text watermark
+  if ((settings.type === 'text' || settings.type === 'both') && textWatermark) {
+    drawTextWatermark(ctx, textWatermark, img.width, img.height, settings);
+  }
+  
+  // Apply MaklerPro branding for non-premium users
+  if (!isPremium) {
+    drawMaklerProBranding(ctx, img.width, img.height);
+  }
+  
+  const blob = await canvasToBlob(canvas, 'webp', 0.9);
+  
+  return {
+    id: crypto.randomUUID(),
+    originalId: imageFile.id,
+    blob,
+    preview: URL.createObjectURL(blob),
+    width: img.width,
+    height: img.height,
+    size: blob.size,
+  };
+}
+
+// ===================================
+// Draw Logo Watermark
+// ===================================
+
+async function drawLogoWatermark(
+  ctx: CanvasRenderingContext2D,
+  logoUrl: string,
+  imageWidth: number,
+  imageHeight: number,
+  settings: CustomWatermarkSettings
+): Promise<void> {
+  try {
+    const logo = await loadImage(logoUrl);
+    
+    // Calculate dimensions with auto-scaling
+    const maxWidth = (imageWidth * settings.scale) / 100;
+    const aspectRatio = logo.width / logo.height;
+    
+    let drawWidth = logo.width;
+    let drawHeight = logo.height;
+    
+    // Scale down if larger than max
+    if (drawWidth > maxWidth) {
+      drawWidth = maxWidth;
+      drawHeight = maxWidth / aspectRatio;
+    }
+    
+    // Calculate position
+    const { x, y } = calculateLogoPosition(
+      settings.position,
+      imageWidth,
+      imageHeight,
+      drawWidth,
+      drawHeight,
+      settings.padding || 20
+    );
+    
+    // Apply opacity
+    ctx.globalAlpha = settings.opacity;
+    
+    // Handle tile position (repeat watermark)
+    if (settings.position === 'tile') {
+      drawTiledWatermark(ctx, logo, imageWidth, imageHeight, drawWidth, drawHeight, settings.opacity);
+    } else {
+      ctx.drawImage(logo, x, y, drawWidth, drawHeight);
+    }
+    
+    ctx.globalAlpha = 1;
+    
+  } catch (error) {
+    console.error('Failed to load logo watermark:', error);
+  }
+}
+
+// ===================================
+// Draw Tiled Watermark
+// ===================================
+
+function drawTiledWatermark(
+  ctx: CanvasRenderingContext2D,
+  logo: HTMLImageElement,
+  imageWidth: number,
+  imageHeight: number,
+  logoWidth: number,
+  logoHeight: number,
+  opacity: number
+): void {
+  const spacingX = logoWidth * 2;
+  const spacingY = logoHeight * 2;
+  
+  ctx.globalAlpha = opacity * 0.3; // Lower opacity for tiled
+  
+  for (let y = 0; y < imageHeight; y += spacingY) {
+    for (let x = 0; x < imageWidth; x += spacingX) {
+      ctx.save();
+      ctx.translate(x + logoWidth / 2, y + logoHeight / 2);
+      ctx.rotate(-30 * Math.PI / 180); // 30 degree rotation
+      ctx.drawImage(logo, -logoWidth / 2, -logoHeight / 2, logoWidth, logoHeight);
+      ctx.restore();
+    }
+  }
+  
+  ctx.globalAlpha = 1;
+}
+
+// ===================================
+// Draw Text Watermark
+// ===================================
+
+function drawTextWatermark(
+  ctx: CanvasRenderingContext2D,
+  textWatermark: { name: string; phone: string },
+  imageWidth: number,
+  imageHeight: number,
+  settings: CustomWatermarkSettings
+): void {
+  const { name, phone } = textWatermark;
+  if (!name && !phone) return;
+  
+  const padding = settings.padding || 20;
+  const fontSize = Math.max(imageWidth * 0.03, 16); // Min 16px, 3% of width
+  
+  ctx.globalAlpha = settings.opacity;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+  ctx.textBaseline = 'top';
+  
+  // Calculate text dimensions
+  const nameMetrics = ctx.measureText(name);
+  const phoneMetrics = ctx.measureText(phone);
+  const textWidth = Math.max(nameMetrics.width, phoneMetrics.width);
+  const lineHeight = fontSize * 1.3;
+  const textHeight = phone ? lineHeight * 2 : lineHeight;
+  
+  // Get position
+  const { x, y, textAlign } = getTextWatermarkPosition(
+    settings.position,
+    imageWidth,
+    imageHeight,
+    textWidth,
+    textHeight,
+    padding
+  );
+  
+  ctx.textAlign = textAlign;
+  
+  // Draw text shadow for better visibility
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  
+  // Draw name
+  if (name) {
+    ctx.fillText(name, x, y);
+  }
+  
+  // Draw phone
+  if (phone) {
+    ctx.font = `${fontSize * 0.85}px Arial, sans-serif`;
+    ctx.fillText(phone, x, y + lineHeight);
+  }
+  
+  // Reset shadow
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.globalAlpha = 1;
+}
+
+// ===================================
+// Position Calculation Helpers
+// ===================================
+
+function calculateLogoPosition(
+  position: WatermarkPosition,
+  imageWidth: number,
+  imageHeight: number,
+  logoWidth: number,
+  logoHeight: number,
+  padding: number
+): { x: number; y: number } {
+  const positions: Record<WatermarkPosition, { x: number; y: number }> = {
+    'top-left': { x: padding, y: padding },
+    'top-center': { x: (imageWidth - logoWidth) / 2, y: padding },
+    'top-right': { x: imageWidth - logoWidth - padding, y: padding },
+    'center-left': { x: padding, y: (imageHeight - logoHeight) / 2 },
+    'center': { x: (imageWidth - logoWidth) / 2, y: (imageHeight - logoHeight) / 2 },
+    'center-right': { x: imageWidth - logoWidth - padding, y: (imageHeight - logoHeight) / 2 },
+    'bottom-left': { x: padding, y: imageHeight - logoHeight - padding },
+    'bottom-center': { x: (imageWidth - logoWidth) / 2, y: imageHeight - logoHeight - padding },
+    'bottom-right': { x: imageWidth - logoWidth - padding, y: imageHeight - logoHeight - padding },
+    'tile': { x: 0, y: 0 },
+  };
+  
+  return positions[position] || positions['bottom-right'];
+}
+
+function getTextWatermarkPosition(
+  position: WatermarkPosition,
+  imageWidth: number,
+  imageHeight: number,
+  _textWidth: number, // Reserved for future text-aware positioning
+  textHeight: number,
+  padding: number
+): { x: number; y: number; textAlign: CanvasTextAlign } {
+  type PositionConfig = { x: number; y: number; textAlign: CanvasTextAlign };
+  
+  const positions: Record<WatermarkPosition, PositionConfig> = {
+    'top-left': { x: padding, y: padding, textAlign: 'left' },
+    'top-center': { x: imageWidth / 2, y: padding, textAlign: 'center' },
+    'top-right': { x: imageWidth - padding, y: padding, textAlign: 'right' },
+    'center-left': { x: padding, y: (imageHeight - textHeight) / 2, textAlign: 'left' },
+    'center': { x: imageWidth / 2, y: (imageHeight - textHeight) / 2, textAlign: 'center' },
+    'center-right': { x: imageWidth - padding, y: (imageHeight - textHeight) / 2, textAlign: 'right' },
+    'bottom-left': { x: padding, y: imageHeight - textHeight - padding, textAlign: 'left' },
+    'bottom-center': { x: imageWidth / 2, y: imageHeight - textHeight - padding, textAlign: 'center' },
+    'bottom-right': { x: imageWidth - padding, y: imageHeight - textHeight - padding, textAlign: 'right' },
+    'tile': { x: imageWidth / 2, y: imageHeight / 2, textAlign: 'center' },
+  };
+  
+  return positions[position] || positions['bottom-right'];
+}
+
+// ===================================
+// MaklerPro Branding (Non-Premium)
+// ===================================
+
+function drawMaklerProBranding(
+  ctx: CanvasRenderingContext2D,
+  imageWidth: number,
+  imageHeight: number
+): void {
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = '#FFFFFF';
+  
+  const brandSize = Math.max(imageWidth, imageHeight) * 0.12;
+  ctx.font = `bold ${brandSize}px Arial`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  
+  ctx.translate(imageWidth / 2, imageHeight / 2);
+  ctx.rotate(-45 * Math.PI / 180);
+  
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = brandSize * 0.04;
+  ctx.strokeText('MaklerPro', 0, 0);
+  ctx.fillText('MaklerPro', 0, 0);
+  
+  ctx.restore();
+}
+
+// ===================================
+// Batch Process with Custom Watermark
+// ===================================
+
+export async function processBatchWithWatermark(
+  images: ImageFile[],
+  watermarkConfig: CustomWatermarkConfig,
+  enhancementConfig?: EnhancementConfig,
+  onProgress?: BatchProgressCallback,
+  maxConcurrent: number = 3
+): Promise<BatchImageResult[]> {
+  const queue = new ConcurrencyQueue(maxConcurrent);
+  const results: BatchImageResult[] = images.map(img => ({
+    imageId: img.id,
+    imageName: img.name,
+    status: 'pending' as const,
+  }));
+
+  const progress: BatchProgress = {
+    total: images.length,
+    completed: 0,
+    successful: 0,
+    failed: 0,
+    currentImageName: '',
+    results,
+  };
+
+  onProgress?.(progress);
+
+  const tasks = images.map((image, index) => {
+    return queue.add(async () => {
+      results[index].status = 'processing';
+      progress.currentImageName = image.name;
+      onProgress?.({ ...progress, results: [...results] });
+
+      try {
+        let processedImage = image;
+
+        // Step 1: Enhancement (if configured)
+        if (enhancementConfig) {
+          const enhanced = await enhanceImage(image, enhancementConfig);
+          processedImage = {
+            ...image,
+            preview: enhanced.preview,
+            width: enhanced.width,
+            height: enhanced.height,
+          };
+        }
+
+        // Step 2: Apply custom watermark
+        const finalResult = await applyCustomWatermark(processedImage, watermarkConfig);
+
+        results[index].status = 'success';
+        results[index].result = finalResult;
+        progress.successful++;
+
+      } catch (error) {
+        console.error(`Failed to process ${image.name}:`, error);
+        results[index].status = 'error';
+        results[index].error = error instanceof Error ? error.message : 'Unknown error';
+        progress.failed++;
+      } finally {
+        progress.completed++;
+        onProgress?.({ ...progress, results: [...results] });
+      }
+    });
+  });
+
+  await Promise.allSettled(tasks);
+
+  progress.currentImageName = '';
+  onProgress?.({ ...progress, results: [...results] });
+
+  return results;
 }

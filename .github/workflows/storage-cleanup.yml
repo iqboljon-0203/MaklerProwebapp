@@ -1,0 +1,135 @@
+name: Storage Cleanup
+
+on:
+  # Manual trigger with options
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run in dry-run mode (no actual deletions)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      max_age_hours:
+        description: 'Delete files older than X hours'
+        required: true
+        default: '24'
+        type: string
+
+  # Scheduled runs
+  schedule:
+    # Daily dry-run at 3:00 AM UTC
+    - cron: '0 3 * * *'
+    # Weekly live cleanup on Sunday at 4:00 AM UTC  
+    - cron: '0 4 * * 0'
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+jobs:
+  cleanup:
+    name: Run Storage Cleanup
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine cleanup mode
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "dry_run=${{ github.event.inputs.dry_run }}" >> $GITHUB_OUTPUT
+            echo "max_age_hours=${{ github.event.inputs.max_age_hours }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" == "0 4 * * 0" ]; then
+            # Sunday scheduled run - live mode
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+            echo "max_age_hours=48" >> $GITHUB_OUTPUT
+          else
+            # Daily scheduled run - dry-run mode
+            echo "dry_run=true" >> $GITHUB_OUTPUT
+            echo "max_age_hours=24" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Display cleanup configuration
+        run: |
+          echo "🧹 Storage Cleanup Configuration"
+          echo "================================"
+          echo "Mode: ${{ steps.mode.outputs.dry_run == 'true' && 'DRY-RUN (no deletions)' || 'LIVE (actual deletions)' }}"
+          echo "Max Age: ${{ steps.mode.outputs.max_age_hours }} hours"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Time: $(date -u)"
+
+      - name: Call Storage Cleanup Edge Function
+        id: cleanup
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "X-Cron-Secret: ${{ env.CRON_SECRET }}" \
+            -d '{
+              "dryRun": ${{ steps.mode.outputs.dry_run }},
+              "maxAgeHours": ${{ steps.mode.outputs.max_age_hours }}
+            }' \
+            "${{ env.SUPABASE_URL }}/functions/v1/storage-cleanup")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "response=$BODY" >> $GITHUB_OUTPUT
+          echo "http_code=$HTTP_CODE" >> $GITHUB_OUTPUT
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Cleanup failed with HTTP $HTTP_CODE"
+            echo "$BODY"
+            exit 1
+          fi
+
+      - name: Parse and display results
+        run: |
+          echo "📊 Cleanup Results"
+          echo "=================="
+          echo '${{ steps.cleanup.outputs.response }}' | jq '.'
+          
+          # Extract key metrics
+          SCANNED=$(echo '${{ steps.cleanup.outputs.response }}' | jq '.scanned')
+          DELETED=$(echo '${{ steps.cleanup.outputs.response }}' | jq '.deleted')
+          SKIPPED=$(echo '${{ steps.cleanup.outputs.response }}' | jq '.skipped')
+          ERRORS=$(echo '${{ steps.cleanup.outputs.response }}' | jq '.errors')
+          DRY_RUN=$(echo '${{ steps.cleanup.outputs.response }}' | jq '.dryRun')
+          
+          echo ""
+          echo "Summary:"
+          echo "--------"
+          echo "📁 Scanned: $SCANNED files"
+          echo "🗑️  Deleted: $DELETED files"
+          echo "⏭️  Skipped: $SKIPPED files (in database)"
+          echo "❌ Errors: $ERRORS"
+          echo "🔍 Dry Run: $DRY_RUN"
+
+      - name: Send notification on failure
+        if: failure()
+        run: |
+          echo "⚠️ Storage cleanup failed!"
+          # Add Slack/Telegram notification here if needed
+
+      - name: Create cleanup summary
+        if: always()
+        run: |
+          echo "## 🧹 Storage Cleanup Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Mode | ${{ steps.mode.outputs.dry_run == 'true' && '🔍 Dry-Run' || '🗑️ Live' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Max Age | ${{ steps.mode.outputs.max_age_hours }} hours |" >> $GITHUB_STEP_SUMMARY
+          echo "| HTTP Status | ${{ steps.cleanup.outputs.http_code }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Response" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.cleanup.outputs.response }}' | jq '.' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

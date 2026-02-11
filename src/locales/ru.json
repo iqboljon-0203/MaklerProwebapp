@@ -1,0 +1,168 @@
+{
+  "common": {
+    "dashboard": "Панель управления",
+    "premium_badge": "PREMIUM",
+    "daily_limit": "Дневной лимит",
+    "back": "Назад",
+    "open_app": "Открыть приложение",
+    "loading": "Загрузка...",
+    "processing": "Обработка...",
+    "processing_count": "{{current}} из {{total}}",
+    "offline": "Нет интернета",
+    "select_tool": "Выберите инструмент для начала",
+    "success": "Успешно",
+    "error": "Ошибка",
+    "cancel": "Отмена",
+    "confirm": "Подтвердить",
+    "delete": "Удалить",
+    "save": "Сохранить",
+    "share": "Поделиться",
+    "download": "Скачать",
+    "close": "Закрыть",
+    "later": "Позже",
+    "left": "осталось",
+    "sum": "сум",
+    "image": "Фото",
+    "video": "Видео",
+    "create": "Создать",
+    "copied": "Скопировано",
+    "copied_desc": "Текст скопирован в буфер обмена",
+    "this_feature": "эта функция"
+  },
+  "modules": {
+    "magic_fix": {
+      "title": "Magic Fix",
+      "desc": "Улучшение фото",
+      "action": "Редактировать",
+      "upload_title": "Загрузите фото",
+      "upload_desc": "Выберите фото для улучшения",
+      "processing_step": "AI обрабатывает изображение...",
+      "before": "До",
+      "after": "После"
+    },
+    "video_studio": {
+      "title": "Видео 9:16",
+      "desc": "Генератор Reels",
+      "action": "Создать",
+      "select_images": "Выберите изображения",
+      "duration": "Длительность",
+      "music": "Музыка",
+      "transition": "Переходы",
+      "generating": "Создание видео..."
+    },
+    "ai_writer": {
+      "title": "AI Текст",
+      "desc": "Генератор описаний",
+      "action": "Написать",
+      "input_placeholder": "Кратко опишите объект (например: 3 комнаты, Чиланзар, новый ремонт...)",
+      "limit_warning": "У вас осталось {{count}} бесплатных генераций. Перейдите на PRO для безлимитного доступа!",
+      "input_label": "Информация о недвижимости",
+      "enter_text": "Введите текст",
+      "platform": "Платформа",
+      "generate_btn": "Сгенерировать текст",
+      "copy_btn": "Копировать",
+      "copy_text": "Копировать текст",
+      "success_desc": "AI описание создано",
+      "loading": {
+        "thinking": "AI думает...",
+        "generating": "Создание текста...",
+        "almost_done": "Почти готово..."
+      },
+      "share": {
+        "title": "Поделиться",
+        "telegram_opened": "Telegram открыт!",
+        "select_chat": "Пожалуйста, выберите чат",
+        "copying": "Копирование текста...",
+        "redirecting_olx": "Перенаправление на OLX",
+        "olx_opened": "Открывается OLX!",
+        "olx_desc": "Текст скопирован, вставьте на сайте",
+        "tip": "Telegram — быстро поделиться, OLX — разместить объявление"
+      },
+      "tone": "Тон",
+      "tone_formal": "Официальный",
+      "tone_engaging": "Привлекательный",
+      "tone_urgent": "Срочный"
+    },
+    "gallery": {
+      "title": "Галерея",
+      "items": "элементов",
+      "clear_all": "Очистить все",
+      "confirm_clear_all": "Вы хотите очистить всю историю?",
+      "confirm_delete": "Вы хотите удалить этот элемент?",
+      "desc": "Ваша история",
+      "action": "Смотреть",
+      "empty": "История пуста",
+      "empty_desc": "Здесь будут храниться созданные вами фото, видео и описания.",
+      "delete_confirm": "Вы действительно хотите удалить?"
+    },
+    "branding": {
+      "title": "Брендинг",
+      "desc": "Лого и Водяной знак",
+      "action": "Настроить"
+    }
+  },
+  "premium": {
+    "limit_reached": "Лимит исчерпан!",
+    "limit_desc": "Вы использовали 5 бесплатных генераций сегодня. Перейдите на PRO для безлимитного доступа!",
+    "get_pro": "Получить PRO",
+    "gate_title": "Премиум Тариф",
+    "gate_desc": "Доступно только в PRO версии. Перейдите на PRO, чтобы разблокировать {{feature}}.",
+    "gate_cta": "Купить PRO",
+    "upgrade_title": "Перейти на PRO",
+    "upgrade_desc": "Безлимитный доступ, 4K экспорт и удаление водяных знаков.",
+    "cta": "Купить Premium - 49,000 сум",
+    "features": {
+      "unlimited": "Безлимитное использование",
+      "no_watermark": "Без водяных знаков",
+      "high_quality": "Высокое качество (4K)",
+      "priority": "Быстрая обработка",
+      "4k": "4K Экспорт видео",
+      "watermark": "Удаление водяного знака",
+      "support": "Приоритетная поддержка",
+      "no_branding": "Без брендинга MaklerPro"
+    },
+    "features_desc": {
+      "unlimited": "Генерация описаний без дневных лимитов",
+      "watermark": "Брендируйте фото своим логотипом",
+      "branding_desc": "Чистый профессиональный вид",
+      "4k": "Видео в максимальном качестве"
+    },
+    "modal": {
+      "subtitle": "Перейдите на профессиональный уровень",
+      "price_month": "или ~${{price}} / месяц",
+      "select_payment": "Выберите способ оплаты:",
+      "coming_soon": "Скоро",
+      "need_help": "Нужна помощь?",
+      "stars_alert": "⭐ Оплата через Telegram Stars\n\nЭта функция скоро будет доступна!\n\nПока пишите @MaklerProSupport.",
+      "contact_support": "Для активации Premium пишите @MaklerProSupport."
+    },
+    "success_title": "Поздравляем!",
+    "success_desc": "Вы теперь PREMIUM участник."
+  },
+  "settings": {
+    "title": "Настройки брендинга",
+    "watermark": "Водяной знак",
+    "logo": "Логотип",
+    "custom_text": "Свой текст",
+    "position": "Позиция",
+    "opacity": "Прозрачность",
+    "scale": "Размер",
+    "save": "Сохранить",
+    "upload_logo": "Загрузить лого",
+    "remove_logo": "Удалить лого",
+    "text_placeholder": "Имя или телефон",
+    "positions": {
+      "top_left": "Верх Лево",
+      "top_right": "Верх Право",
+      "bottom_left": "Низ Лево",
+      "bottom_right": "Низ Право",
+      "center": "Центр"
+    }
+  },
+  "upload": {
+    "drag_drop": "Перетащите файлы сюда",
+    "browse": "или нажмите для выбора",
+    "max_size": "Макс. размер: 15MB",
+    "supported_formats": "JPG, PNG, WEBP"
+  }
+}

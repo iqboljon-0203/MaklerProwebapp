@@ -130,6 +130,27 @@ export type WatermarkPosition =
   | 'bottom-right'
   | 'tile';
 
+// Custom Watermark Types
+export type WatermarkType = 'text' | 'logo' | 'both';
+
+export interface CustomWatermarkSettings {
+  type: WatermarkType;
+  position: WatermarkPosition;
+  opacity: number;       // 0 to 1
+  scale: number;         // Max percentage of image width (e.g., 15 = 15%)
+  enabled: boolean;
+  padding?: number;      // Padding from edges in pixels
+}
+
+export interface UserBrandingProfile {
+  customWatermarkUrl: string | null;
+  watermarkSettings: CustomWatermarkSettings;
+  textWatermark: {
+    name: string;
+    phone: string;
+  };
+}
+
 export interface CompressionConfig {
   maxWidth: number;
   maxHeight: number;
@@ -149,7 +170,7 @@ export interface EnhancementConfig {
 // ===================================
 
 export interface SlideshowConfig {
-  images: ProcessedImage[];
+  images: Array<{ id: string; preview: string }>; // Accept any image with preview
   duration: number;        // seconds per slide
   transition: TransitionType;
   transitionDuration: number;

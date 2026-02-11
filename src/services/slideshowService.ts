@@ -1,311 +1,433 @@
 import type { 
   SlideshowConfig, 
-  TransitionType 
+  TransitionType,
+  ProcessedImage 
 } from '@/types';
-import { loadImage, createCanvas, canvasToBlob } from './imageService';
+import { supabase } from '@/lib/supabase';
 
 // ===================================
-// Video Slideshow Generator
+// Video Slideshow Service (Server-Side)
 // ===================================
 
 export interface SlideshowProgress {
-  status: 'preparing' | 'rendering' | 'encoding' | 'completed' | 'error';
+  status: 'uploading' | 'queued' | 'fetching' | 'rendering' | 'saving' | 'completed' | 'error';
   progress: number; // 0-100
   message: string;
+  jobId?: string;
+  videoUrl?: string;
+  error?: string;
 }
 
-type ProgressCallback = (progress: SlideshowProgress) => void;
+export type ProgressCallback = (progress: SlideshowProgress) => void;
+
+// ===================================
+// API Endpoints
+// ===================================
+
+const API_BASE = '/api';
+
+interface VideoJobResponse {
+  success: boolean;
+  jobId: string;
+  message: string;
+  estimatedTime: number;
+}
+
+interface VideoStatusResponse {
+  jobId: string;
+  status: 'queued' | 'fetching' | 'rendering' | 'saving' | 'completed' | 'failed';
+  progress: number;
+  videoUrl?: string;
+  error?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+// ===================================
+// Upload Images to Supabase Storage
+// ===================================
+
+async function uploadImagesToStorage(
+  images: ProcessedImage[],
+  userId: string,
+  onProgress?: ProgressCallback
+): Promise<string[]> {
+  const uploadedUrls: string[] = [];
+  
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i];
+    
+    onProgress?.({
+      status: 'uploading',
+      progress: Math.round((i / images.length) * 20),
+      message: `Rasm yuklanmoqda ${i + 1}/${images.length}...`,
+    });
+    
+    // Generate unique filename
+    const fileName = `slideshow/${userId}/${Date.now()}_${i}.webp`;
+    
+    // Upload to Supabase Storage
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+    
+    const { error } = await supabase
+      .storage
+      .from('images')
+      .upload(fileName, image.blob, {
+        contentType: 'image/webp',
+        cacheControl: '3600',
+      });
+    
+    if (error) {
+      throw new Error(`Failed to upload image ${i + 1}: ${error.message}`);
+    }
+    
+    // Get public URL
+    const { data: urlData } = supabase
+      .storage
+      .from('images')
+      .getPublicUrl(fileName);
+    
+    uploadedUrls.push(urlData.publicUrl);
+  }
+  
+  return uploadedUrls;
+}
+
+// ===================================
+// Start Server-Side Video Generation
+// ===================================
+
+async function startVideoGeneration(
+  imageUrls: string[],
+  config: SlideshowConfig,
+  userId: string
+): Promise<VideoJobResponse> {
+  // Map config to API format
+  const transitionMap: Record<TransitionType, string> = {
+    none: 'none',
+    fade: 'fade',
+    'slide-left': 'slideLeft',
+    'slide-right': 'slideRight',
+    'zoom-in': 'zoom',
+    'zoom-out': 'zoom',
+  };
+  
+  const requestBody = {
+    images: imageUrls.map(url => ({
+      url,
+      duration: config.duration,
+    })),
+    transition: transitionMap[config.transition] || 'fade',
+    transitionDuration: config.transitionDuration,
+    aspectRatio: config.aspectRatio,
+    userId,
+  };
+  
+  const response = await fetch(`${API_BASE}/generate-video`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(requestBody),
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to start video generation');
+  }
+  
+  return response.json();
+}
+
+// ===================================
+// Poll for Video Status
+// ===================================
+
+async function pollVideoStatus(
+  jobId: string,
+  onProgress: ProgressCallback,
+  maxAttempts: number = 120, // 2 minutes with 1-second intervals
+  interval: number = 1000
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    
+    const checkStatus = async () => {
+      attempts++;
+      
+      try {
+        const response = await fetch(`${API_BASE}/video-status?jobId=${jobId}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to check status');
+        }
+        
+        const status: VideoStatusResponse = await response.json();
+        
+        // Update progress
+        const statusMessages: Record<string, string> = {
+          queued: 'Navbatda kutilmoqda...',
+          fetching: 'Rasmlar yuklanmoqda...',
+          rendering: 'Video renderlanmoqda...',
+          saving: 'Video saqlanmoqda...',
+          completed: 'Video tayyor!',
+          failed: 'Xatolik yuz berdi',
+        };
+        
+        onProgress({
+          status: status.status as SlideshowProgress['status'],
+          progress: 20 + (status.progress * 0.8), // 20-100% range
+          message: statusMessages[status.status] || 'Ishlanmoqda...',
+          jobId,
+          videoUrl: status.videoUrl,
+          error: status.error,
+        });
+        
+        if (status.status === 'completed' && status.videoUrl) {
+          resolve(status.videoUrl);
+          return;
+        }
+        
+        if (status.status === 'failed') {
+          reject(new Error(status.error || 'Video generation failed'));
+          return;
+        }
+        
+        if (attempts >= maxAttempts) {
+          reject(new Error('Video generation timeout'));
+          return;
+        }
+        
+        // Continue polling
+        setTimeout(checkStatus, interval);
+        
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          reject(error);
+          return;
+        }
+        // Retry on network errors
+        setTimeout(checkStatus, interval * 2);
+      }
+    };
+    
+    checkStatus();
+  });
+}
+
+// ===================================
+// Supabase Realtime Subscription (Alternative to Polling)
+// ===================================
+
+export function subscribeToVideoJob(
+  jobId: string,
+  onUpdate: (status: VideoStatusResponse) => void,
+  onError: (error: Error) => void
+): () => void {
+  if (!supabase) {
+    onError(new Error('Supabase not configured'));
+    return () => {};
+  }
+  
+  const channel = supabase
+    .channel(`video_job_${jobId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'video_jobs',
+        filter: `shotstack_id=eq.${jobId}`,
+      },
+      (payload) => {
+        const job = payload.new as any;
+        onUpdate({
+          jobId: job.shotstack_id,
+          status: job.status,
+          progress: estimateProgress(job.status),
+          videoUrl: job.video_url,
+          error: job.error,
+          createdAt: job.created_at,
+          completedAt: job.completed_at,
+        });
+      }
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('Subscribed to video job updates');
+      }
+    });
+  
+  // Return unsubscribe function
+  return () => {
+    supabase?.removeChannel(channel);
+  };
+}
+
+function estimateProgress(status: string): number {
+  const progressMap: Record<string, number> = {
+    queued: 10,
+    fetching: 30,
+    rendering: 60,
+    saving: 90,
+    completed: 100,
+    failed: 0,
+  };
+  return progressMap[status] || 0;
+}
+
+// ===================================
+// Main Function: Generate Slideshow (Server-Side)
+// ===================================
 
 export async function generateSlideshow(
   config: SlideshowConfig,
+  userId: string,
   onProgress?: ProgressCallback
-): Promise<Blob> {
-  const { images, duration, transition, transitionDuration, aspectRatio, fps } = config;
-  
-  // Calculate dimensions based on aspect ratio (9:16 for vertical video)
-  const dimensions = getAspectRatioDimensions(aspectRatio);
-  
-  onProgress?.({
-    status: 'preparing',
-    progress: 0,
-    message: 'Preparing images...',
-  });
-  
-  // Load all images
-  const loadedImages: HTMLImageElement[] = [];
-  for (let i = 0; i < images.length; i++) {
-    const img = await loadImage(images[i].preview);
-    loadedImages.push(img);
+): Promise<string> {
+  try {
+    // Step 1: Upload images to Supabase Storage
     onProgress?.({
-      status: 'preparing',
-      progress: ((i + 1) / images.length) * 20,
-      message: `Loading image ${i + 1}/${images.length}...`,
+      status: 'uploading',
+      progress: 0,
+      message: 'Rasmlar yuklanmoqda...',
     });
-  }
-  
-  // Create frames
-  const frames: Blob[] = [];
-  const framesPerSlide = fps * duration;
-  const framesPerTransition = fps * transitionDuration;
-  let totalFrames = 0;
-  
-  // Calculate total frames for progress
-  for (let i = 0; i < loadedImages.length; i++) {
-    totalFrames += framesPerSlide;
-    if (i < loadedImages.length - 1 && transition !== 'none') {
-      totalFrames += framesPerTransition;
-    }
-  }
-  
-  let currentFrame = 0;
-  
-  onProgress?.({
-    status: 'rendering',
-    progress: 20,
-    message: 'Rendering frames...',
-  });
-  
-  for (let i = 0; i < loadedImages.length; i++) {
-    // Render static frames for current slide
-    for (let f = 0; f < framesPerSlide; f++) {
-      const frame = await renderFrame(
-        loadedImages[i],
-        null,
-        dimensions,
-        'none',
-        0
-      );
-      frames.push(frame);
-      currentFrame++;
-      
-      onProgress?.({
-        status: 'rendering',
-        progress: 20 + (currentFrame / totalFrames) * 60,
-        message: `Rendering frame ${currentFrame}/${totalFrames}...`,
-      });
-    }
     
-    // Render transition frames
-    if (i < loadedImages.length - 1 && transition !== 'none') {
-      for (let f = 0; f < framesPerTransition; f++) {
-        const transitionProgress = f / framesPerTransition;
-        const frame = await renderFrame(
-          loadedImages[i],
-          loadedImages[i + 1],
-          dimensions,
-          transition,
-          transitionProgress
-        );
-        frames.push(frame);
-        currentFrame++;
-        
-        onProgress?.({
-          status: 'rendering',
-          progress: 20 + (currentFrame / totalFrames) * 60,
-          message: `Rendering transition ${currentFrame}/${totalFrames}...`,
-        });
-      }
-    }
+    const imageUrls = await uploadImagesToStorage(config.images, userId, onProgress);
+    
+    // Step 2: Start server-side video generation
+    onProgress?.({
+      status: 'queued',
+      progress: 20,
+      message: 'Video generatsiya boshlanmoqda...',
+    });
+    
+    const jobResponse = await startVideoGeneration(imageUrls, config, userId);
+    
+    onProgress?.({
+      status: 'queued',
+      progress: 25,
+      message: 'Navbatda kutilmoqda...',
+      jobId: jobResponse.jobId,
+    });
+    
+    // Step 3: Poll for completion
+    const videoUrl = await pollVideoStatus(
+      jobResponse.jobId,
+      onProgress!,
+      Math.ceil(jobResponse.estimatedTime) * 2, // 2x estimated time as max
+      1000
+    );
+    
+    onProgress?.({
+      status: 'completed',
+      progress: 100,
+      message: 'Video tayyor!',
+      jobId: jobResponse.jobId,
+      videoUrl,
+    });
+    
+    return videoUrl;
+    
+  } catch (error) {
+    console.error('Slideshow generation error:', error);
+    
+    onProgress?.({
+      status: 'error',
+      progress: 0,
+      message: error instanceof Error ? error.message : 'Xatolik yuz berdi',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
+    throw error;
   }
-  
-  onProgress?.({
-    status: 'encoding',
-    progress: 80,
-    message: 'Encoding video...',
-  });
-  
-  // Encode frames to WebM video using MediaRecorder
-  const videoBlob = await encodeToVideo(frames, fps, dimensions, onProgress);
-  
-  onProgress?.({
-    status: 'completed',
-    progress: 100,
-    message: 'Video ready!',
-  });
-  
-  return videoBlob;
 }
 
 // ===================================
-// Frame Rendering
+// Generate with Realtime Updates (Alternative)
 // ===================================
 
-async function renderFrame(
-  currentImage: HTMLImageElement,
-  nextImage: HTMLImageElement | null,
-  dimensions: { width: number; height: number },
-  transition: TransitionType,
-  progress: number
-): Promise<Blob> {
-  const { canvas, ctx } = createCanvas(dimensions.width, dimensions.height);
-  
-  // Fill background with black
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, dimensions.width, dimensions.height);
-  
-  if (nextImage === null || transition === 'none') {
-    // Just draw the current image
-    drawImageCover(ctx, currentImage, dimensions);
-  } else {
-    // Apply transition effect
-    switch (transition) {
-      case 'fade':
-        drawImageCover(ctx, currentImage, dimensions);
-        ctx.globalAlpha = progress;
-        drawImageCover(ctx, nextImage, dimensions);
-        ctx.globalAlpha = 1;
-        break;
-        
-      case 'slide-left':
-        const offsetX1 = -dimensions.width * progress;
-        drawImageCover(ctx, currentImage, dimensions, offsetX1, 0);
-        drawImageCover(ctx, nextImage, dimensions, dimensions.width + offsetX1, 0);
-        break;
-        
-      case 'slide-right':
-        const offsetX2 = dimensions.width * progress;
-        drawImageCover(ctx, currentImage, dimensions, offsetX2, 0);
-        drawImageCover(ctx, nextImage, dimensions, -dimensions.width + offsetX2, 0);
-        break;
-        
-      case 'zoom-in':
-        const scale1 = 1 + progress * 0.2;
-        ctx.save();
-        ctx.translate(dimensions.width / 2, dimensions.height / 2);
-        ctx.scale(scale1, scale1);
-        ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
-        ctx.globalAlpha = 1 - progress;
-        drawImageCover(ctx, currentImage, dimensions);
-        ctx.restore();
-        ctx.globalAlpha = progress;
-        drawImageCover(ctx, nextImage, dimensions);
-        ctx.globalAlpha = 1;
-        break;
-        
-      case 'zoom-out':
-        const scale2 = 1 - progress * 0.2;
-        ctx.save();
-        ctx.translate(dimensions.width / 2, dimensions.height / 2);
-        ctx.scale(scale2, scale2);
-        ctx.translate(-dimensions.width / 2, -dimensions.height / 2);
-        ctx.globalAlpha = 1 - progress;
-        drawImageCover(ctx, currentImage, dimensions);
-        ctx.restore();
-        ctx.globalAlpha = progress;
-        drawImageCover(ctx, nextImage, dimensions);
-        ctx.globalAlpha = 1;
-        break;
-    }
-  }
-  
-  return canvasToBlob(canvas, 'webp', 0.8);
-}
-
-function drawImageCover(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  dimensions: { width: number; height: number },
-  offsetX: number = 0,
-  offsetY: number = 0
-): void {
-  const { width, height } = dimensions;
-  const imgRatio = img.width / img.height;
-  const canvasRatio = width / height;
-  
-  let drawWidth: number;
-  let drawHeight: number;
-  let drawX: number;
-  let drawY: number;
-  
-  if (imgRatio > canvasRatio) {
-    // Image is wider
-    drawHeight = height;
-    drawWidth = img.width * (height / img.height);
-    drawX = (width - drawWidth) / 2 + offsetX;
-    drawY = offsetY;
-  } else {
-    // Image is taller
-    drawWidth = width;
-    drawHeight = img.height * (width / img.width);
-    drawX = offsetX;
-    drawY = (height - drawHeight) / 2 + offsetY;
-  }
-  
-  ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-}
-
-// ===================================
-// Video Encoding
-// ===================================
-
-async function encodeToVideo(
-  frames: Blob[],
-  fps: number,
-  dimensions: { width: number; height: number },
+export async function generateSlideshowWithRealtime(
+  config: SlideshowConfig,
+  userId: string,
   onProgress?: ProgressCallback
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = dimensions.width;
-    canvas.height = dimensions.height;
-    const ctx = canvas.getContext('2d')!;
-    
-    // Use MediaRecorder to capture canvas
-    const stream = canvas.captureStream(fps);
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm;codecs=vp9',
-      videoBitsPerSecond: 1500000, // 1.5 Mbps (Optimized for Vercel 4.5MB limit)
-    });
-    
-    const chunks: Blob[] = [];
-    
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        chunks.push(e.data);
-      }
-    };
-    
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      resolve(blob);
-    };
-    
-    mediaRecorder.onerror = (event) => reject(new Error('MediaRecorder error: ' + event.type));
-    mediaRecorder.start();
-    
-    let frameIndex = 0;
-    const frameDuration = 1000 / fps;
-    
-    const renderNextFrame = async () => {
-      if (frameIndex >= frames.length) {
-        mediaRecorder.stop();
-        return;
-      }
-      
-      const frameBlob = frames[frameIndex];
-      const img = await createImageBitmap(frameBlob);
-      ctx.drawImage(img, 0, 0);
-      
-      frameIndex++;
-      
+): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Upload images
       onProgress?.({
-        status: 'encoding',
-        progress: 80 + (frameIndex / frames.length) * 20,
-        message: `Encoding frame ${frameIndex}/${frames.length}...`,
+        status: 'uploading',
+        progress: 0,
+        message: 'Rasmlar yuklanmoqda...',
       });
       
-      setTimeout(renderNextFrame, frameDuration);
-    };
-    
-    renderNextFrame();
+      const imageUrls = await uploadImagesToStorage(config.images, userId, onProgress);
+      
+      // Start generation
+      const jobResponse = await startVideoGeneration(imageUrls, config, userId);
+      
+      // Subscribe to realtime updates
+      const unsubscribe = subscribeToVideoJob(
+        jobResponse.jobId,
+        (status) => {
+          const statusMessages: Record<string, string> = {
+            queued: 'Navbatda kutilmoqda...',
+            fetching: 'Rasmlar yuklanmoqda...',
+            rendering: 'Video renderlanmoqda...',
+            saving: 'Video saqlanmoqda...',
+            completed: 'Video tayyor!',
+            failed: 'Xatolik yuz berdi',
+          };
+          
+          onProgress?.({
+            status: status.status as SlideshowProgress['status'],
+            progress: 20 + (status.progress * 0.8),
+            message: statusMessages[status.status] || 'Ishlanmoqda...',
+            jobId: status.jobId,
+            videoUrl: status.videoUrl,
+            error: status.error,
+          });
+          
+          if (status.status === 'completed' && status.videoUrl) {
+            unsubscribe();
+            resolve(status.videoUrl);
+          }
+          
+          if (status.status === 'failed') {
+            unsubscribe();
+            reject(new Error(status.error || 'Video generation failed'));
+          }
+        },
+        (error) => {
+          reject(error);
+        }
+      );
+      
+      // Timeout fallback
+      setTimeout(() => {
+        unsubscribe();
+        reject(new Error('Video generation timeout'));
+      }, 300000); // 5 minutes max
+      
+    } catch (error) {
+      reject(error);
+    }
   });
 }
 
 // ===================================
-// Utilities
+// Utility Functions
 // ===================================
 
-function getAspectRatioDimensions(
+export function estimateSlideshowDuration(config: SlideshowConfig): number {
+  const { images, duration, transition, transitionDuration } = config;
+  const transitions = transition !== 'none' ? images.length - 1 : 0;
+  return images.length * duration + transitions * transitionDuration;
+}
+
+export function getAspectRatioDimensions(
   ratio: '9:16' | '16:9' | '1:1'
 ): { width: number; height: number } {
   switch (ratio) {
@@ -318,8 +440,3 @@ function getAspectRatioDimensions(
   }
 }
 
-export function estimateSlideshowDuration(config: SlideshowConfig): number {
-  const { images, duration, transition, transitionDuration } = config;
-  const transitions = transition !== 'none' ? images.length - 1 : 0;
-  return images.length * duration + transitions * transitionDuration;
-}

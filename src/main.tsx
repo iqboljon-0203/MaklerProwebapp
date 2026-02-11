@@ -1,7 +1,13 @@
 import { StrictMode, Component, type ErrorInfo, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { createQueryClient } from '@/lib/queryClient'
 import './index.css'
 import App from './App.tsx'
+import './i18n'; // Initialize i18n
+
+// Create query client instance
+const queryClient = createQueryClient()
 
 // Xatolarni ushlash uchun oddiy komponent
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
@@ -49,8 +55,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary>
-        <App />
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary>
+          <App />
+      </ErrorBoundary>
+    </QueryClientProvider>
   </StrictMode>,
 )
+

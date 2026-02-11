@@ -3,15 +3,19 @@ import { useTelegram } from '@/hooks';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Crown, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface PremiumGateProps {
   children: React.ReactNode;
   featureName?: string;
 }
 
-export function PremiumGate({ children, featureName = "эта функция" }: PremiumGateProps) {
+export function PremiumGate({ children, featureName }: PremiumGateProps) {
+  const { t } = useTranslation();
   const { user } = useUserStore();
   const { webApp } = useTelegram();
+  
+  const displayFeatureName = featureName || t('common.this_feature');
 
   if (user.isPremium) {
     return <>{children}</>;
@@ -27,14 +31,14 @@ export function PremiumGate({ children, featureName = "эта функция" }:
       {/* Lock Overlay */}
       <div className="absolute inset-0 z-10 flex items-center justify-center p-6">
         <Card className="max-w-xs w-full p-6 text-center space-y-4 shadow-2xl border-yellow-500/20 bg-background/95 backdrop-blur-sm">
-          <div className="mx-auto w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
-            <Lock className="w-6 h-6 text-yellow-600" />
+          <div className="mx-auto w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-500/20 flex items-center justify-center">
+            <Lock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
           </div>
           
           <div className="space-y-2">
-            <h3 className="font-bold text-lg">Premium доступ</h3>
+            <h3 className="font-bold text-lg">{t('premium.gate_title')}</h3>
             <p className="text-sm text-muted-foreground">
-              Доступно только в Pro версии. Обновитесь, чтобы разблокировать {featureName}.
+              {t('premium.gate_desc', { feature: displayFeatureName })}
             </p>
           </div>
 
@@ -50,10 +54,11 @@ export function PremiumGate({ children, featureName = "эта функция" }:
             }}
           >
             <Crown className="w-4 h-4 mr-2" />
-            Купить Pro
+            {t('premium.gate_cta')}
           </Button>
         </Card>
       </div>
     </div>
   );
 }
+
