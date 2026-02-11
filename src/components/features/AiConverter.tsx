@@ -509,6 +509,46 @@ export function AiConverter() {
     }
   };
 
+  const handleRefine = async (instruction: string) => {
+    if (!generatedText) return;
+
+    try {
+      setProcessing(true);
+      hapticFeedback('impact');
+      
+      const result = await generateDescription(rawInput, platform, {
+        previousText: generatedText,
+        instruction
+      });
+      
+      setGeneratedText(result);
+      
+      // Update usage if applicable
+      if (telegramUser?.id) {
+        await updateGenerations(String(telegramUser.id), user.isPremium);
+      }
+      
+      toast.success(t('common.success') + '! ✨');
+      hapticFeedback('notification');
+      
+    } catch (error) {
+      console.error(error);
+      
+      if (error instanceof LimitExceededError) {
+        hapticFeedback('notification');
+        setShowPremiumModal(true);
+        return;
+      }
+      
+      toast.error(t('common.error'), {
+        description: error instanceof Error ? error.message : t('common.error')
+      });
+      hapticFeedback('notification');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const handleCopy = async () => {
     if (!generatedText) return;
     
@@ -690,6 +730,42 @@ export function AiConverter() {
                   </pre>
                 </div>
               </Card>
+
+              {/* Refinement Actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                   variant="outline" 
+                   onClick={() => handleRefine("Make it shorter")}
+                   disabled={isProcessing}
+                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
+                >
+                   ✂️ Qisqaroq
+                </Button>
+                <Button 
+                   variant="outline" 
+                   onClick={() => handleRefine("Make it longer and more detailed")}
+                   disabled={isProcessing}
+                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
+                >
+                   📝 Uzunroq
+                </Button>
+                <Button 
+                   variant="outline" 
+                   onClick={() => handleRefine("Make it more formal")}
+                   disabled={isProcessing}
+                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
+                >
+                   👔 Ekspert
+                </Button>
+                <Button 
+                   variant="outline" 
+                   onClick={() => handleRefine("Add more emojis")}
+                   disabled={isProcessing}
+                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
+                >
+                   😃 Emoji+
+                </Button>
+              </div>
               
               {/* Smart Share Buttons */}
               <ShareButtonsPanel 

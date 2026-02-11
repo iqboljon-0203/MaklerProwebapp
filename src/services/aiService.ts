@@ -125,7 +125,8 @@ function incrementLocalUsage(): void {
 
 export async function generateDescription(
   rawInput: string,
-  platform: Platform
+  platform: Platform,
+  options?: { previousText?: string; instruction?: string }
 ): Promise<string> {
   // 1. CHECK LIMIT BEFORE API CALL
   const limitCheck = checkUserLimit();
@@ -151,7 +152,12 @@ export async function generateDescription(
         'Content-Type': 'application/json',
         'X-Telegram-Init-Data': initData
       },
-      body: JSON.stringify({ rawInput, platform }),
+      body: JSON.stringify({ 
+        rawInput, 
+        platform,
+        previousText: options?.previousText,
+        instruction: options?.instruction
+      }),
       signal: controller.signal
     });
     

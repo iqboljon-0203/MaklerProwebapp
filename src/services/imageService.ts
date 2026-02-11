@@ -5,6 +5,14 @@ import {
   createCanvas, 
   canvasToBlob 
 } from '@/utils/image';
+
+export { 
+  resizeImage, 
+  createImageFromFile, 
+  loadImage, 
+  createCanvas, 
+  canvasToBlob 
+};
 import type { 
   ImageFile, 
   ProcessedImage, 
