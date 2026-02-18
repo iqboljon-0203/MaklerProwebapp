@@ -1,12 +1,15 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { useImageStore, useAppStore, useHistoryStore } from '@/store';
+import { useImageStore, useAppStore, useHistoryStore, useUserStore } from '@/store';
 import { 
   enhanceImage, 
   getMagicFixPreset, 
   processImagesBatch,
   getBatchSummary,
+  applyCustomWatermark,
+  processBatchWithWatermark,
+  type CustomWatermarkConfig,
   type BatchProgress,
   type BatchImageResult
 } from '@/services/imageService';
@@ -236,6 +239,7 @@ export function EnhanceEditor() {
   
   const { isProcessing, setProcessing, addToast } = useAppStore();
   const { addItem } = useHistoryStore();
+  const { user, branding } = useUserStore(); // Get user branding settings
   const { processFiles } = useImageProcessor();
   
   const { openPicker, files, clearFiles } = useFilePicker({
@@ -250,6 +254,14 @@ export function EnhanceEditor() {
   const [batchMode, setBatchMode] = useState(false);
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [batchResults, setBatchResults] = useState<BatchImageResult[] | null>(null);
+  
+  // State for optional watermark application
+  const [applyWatermark, setApplyWatermark] = useState(branding.settings.enabled);
+
+  // Sync with global setting when it changes
+  useEffect(() => {
+      setApplyWatermark(branding.settings.enabled);
+  }, [branding.settings.enabled]);
 
   // Effect to process files when selected via the picker hook
   useEffect(() => {
@@ -258,6 +270,13 @@ export function EnhanceEditor() {
       clearFiles();
     }
   }, [files, processFiles, clearFiles]);
+
+  // Auto-select first image if none is active
+  useEffect(() => {
+    if (!activeImageId && images.length > 0) {
+      setActiveImageId(images[0].id);
+    }
+  }, [images, activeImageId]);
 
   // Get active image details
   const activeImage = images.find(img => img.id === activeImageId);
@@ -304,7 +323,31 @@ export function EnhanceEditor() {
     try {
       setProcessing(true);
       const config = getMagicFixPreset();
-      const result = await enhanceImage(activeImage, config);
+      
+      // 1. Re-enhance to get fresh blob/result
+      let result = await enhanceImage(activeImage, config);
+
+      // 2. Apply Watermark if toggle is ON
+      if (applyWatermark && branding.settings.enabled) {
+          const watermarkConfig: CustomWatermarkConfig = {
+              settings: branding.settings,
+              textWatermark: branding.textWatermark,
+              logoUrl: branding.customLogoUrl || undefined,
+              isPremium: user.isPremium
+          };
+          
+          // Wrap result as ImageFile for watermark function
+          const imageFileWrapper = {
+              ...activeImage,
+              preview: result.preview, // Use enhanced preview
+              width: result.width,
+              height: result.height,
+          };
+
+          const watermarked = await applyCustomWatermark(imageFileWrapper, watermarkConfig);
+          result = watermarked;
+      }
+
       addProcessedImage(result);
       
       addItem({
@@ -326,7 +369,7 @@ export function EnhanceEditor() {
     } finally {
       setProcessing(false);
     }
-  }, [activeImage, enhancedPreview, addProcessedImage, addItem, setProcessing, t]);
+  }, [activeImage, enhancedPreview, addProcessedImage, addItem, setProcessing, t, branding, user.isPremium, applyWatermark]);
 
   const handleCancel = useCallback(() => {
     setComparisonMode(false);
@@ -351,13 +394,32 @@ export function EnhanceEditor() {
       setBatchResults(null);
       
       const config = getMagicFixPreset();
-      
-      const results = await processImagesBatch(
-        imagesToProcess,
-        config,
-        (progress) => setBatchProgress(progress),
-        3 // Max 3 concurrent operations for mobile safety
-      );
+      let results: BatchImageResult[];
+
+      // Check if watermark is enabled via toggle AND global setting
+      if (applyWatermark && branding.settings.enabled) {
+          const watermarkConfig: CustomWatermarkConfig = {
+              settings: branding.settings,
+              textWatermark: branding.textWatermark,
+              logoUrl: branding.customLogoUrl || undefined,
+              isPremium: user.isPremium
+          };
+
+          results = await processBatchWithWatermark(
+              imagesToProcess,
+              watermarkConfig,
+              config,
+              (progress) => setBatchProgress(progress),
+              3
+          );
+      } else {
+          results = await processImagesBatch(
+            imagesToProcess,
+            config,
+            (progress) => setBatchProgress(progress),
+            3 // Max 3 concurrent operations for mobile safety
+          );
+      }
       
       setBatchResults(results);
       
@@ -376,7 +438,7 @@ export function EnhanceEditor() {
       setProcessing(false);
       setBatchProgress(null);
     }
-  }, [images, selectedImages, setProcessing, t]);
+  }, [images, selectedImages, setProcessing, t, branding, user.isPremium, applyWatermark]);
 
   const handleSaveAllResults = useCallback(() => {
     if (!batchResults) return;
@@ -509,12 +571,27 @@ export function EnhanceEditor() {
           </div>
         </div>
         
+        {/* Branding Toggle */}
+        {branding.settings.enabled && images.length > 0 && (
+            <button
+                onClick={() => setApplyWatermark(!applyWatermark)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    applyWatermark 
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+                        : 'bg-white/5 text-gray-500 border border-white/10'
+                }`}
+            >
+                <div className={`w-2 h-2 rounded-full ${applyWatermark ? 'bg-amber-400' : 'bg-gray-500'}`} />
+                {applyWatermark ? 'Logo ON' : 'Logo OFF'}
+            </button>
+        )}
+
         {images.length > 1 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => selectedIds.length === images.length ? deselectAll() : selectAll()}
-            className="text-xs font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 h-8 px-3 rounded-lg"
+            className="text-xs font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 h-8 px-3 rounded-lg ml-2"
           >
             {selectedIds.length === images.length ? t('common.cancel') : t('common.confirm')}
           </Button>
@@ -575,22 +652,41 @@ export function EnhanceEditor() {
       {/* Controls Bar (Floating) */}
       <div className="bg-gray-900/80 backdrop-blur-xl p-4 rounded-3xl border border-white/10 shadow-2xl">
         {comparisonMode ? (
-          <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={handleCancel}
-              className="flex-1 rounded-xl h-12 border-white/10 hover:bg-white/5 hover:text-white"
-            >
-              <XCircle className="mr-2 h-5 w-5" />
-              {t('common.cancel')}
-            </Button>
-            <Button 
-              onClick={handleSave} 
-              className="flex-[2] rounded-xl h-12 bg-gradient-to-r from-emerald-500 to-green-600 hover:shadow-lg hover:shadow-green-500/25 text-white font-bold"
-            >
-              <CheckCircle2 className="mr-2 h-5 w-5" />
-              {t('common.save')}
-            </Button>
+          <div className="flex flex-col gap-3">
+             {/* Branding Toggle in Comparison Mode */}
+             {branding.settings.enabled && (
+                <div className="flex items-center justify-center pb-2">
+                    <button
+                        onClick={() => setApplyWatermark(!applyWatermark)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                            applyWatermark 
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' 
+                                : 'bg-white/5 text-gray-400 border border-white/10'
+                        }`}
+                    >
+                        {applyWatermark ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                        {applyWatermark ? 'Logotip qo\'shiladi' : 'Logotip qo\'shilmaydi'}
+                    </button>
+                </div>
+             )}
+
+             <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={handleCancel}
+                  className="flex-1 rounded-xl h-12 border-white/10 hover:bg-white/5 hover:text-white"
+                >
+                  <XCircle className="mr-2 h-5 w-5" />
+                  {t('common.cancel')}
+                </Button>
+                <Button 
+                  onClick={handleSave} 
+                  className="flex-[2] rounded-xl h-12 bg-gradient-to-r from-emerald-500 to-green-600 hover:shadow-lg hover:shadow-green-500/25 text-white font-bold"
+                >
+                  <CheckCircle2 className="mr-2 h-5 w-5" />
+                  {t('common.save')}
+                </Button>
+             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">

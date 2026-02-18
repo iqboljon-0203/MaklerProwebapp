@@ -125,25 +125,23 @@ export function shareToTelegram(text: string, url?: string): ShareResult {
     const encodedText = encodeURIComponent(text);
     const encodedUrl = url ? encodeURIComponent(url) : '';
     
-    // Build share URL
+    // Build share URL - ALWAYS use https://t.me/share/url for consistency
+    // tg:// scheme is often blocked or problematic in Mini Apps
     let shareUrl: string;
     
     if (url) {
       shareUrl = `${TELEGRAM_SHARE_URL}?url=${encodedUrl}&text=${encodedText}`;
     } else {
-      // For text-only sharing, use tg://msg protocol
-      shareUrl = `${TELEGRAM_MSG_URL}?text=${encodedText}`;
+      shareUrl = `${TELEGRAM_SHARE_URL}?url=&text=${encodedText}`;
     }
     
-    // Open link using appropriate method
-    if (isTelegramMiniApp() && webApp?.openLink) {
-      // Inside Telegram Mini App - use openLink for external URLs
-      webApp.openLink(shareUrl);
-    } else if (isTelegramMiniApp() && webApp?.openTelegramLink) {
-      // For t.me links, use openTelegramLink
+    // Open link using openTelegramLink (since it's a t.me link)
+    if (isTelegramMiniApp() && webApp?.openTelegramLink) {
       webApp.openTelegramLink(shareUrl);
+    } else if (isTelegramMiniApp() && webApp?.openLink) {
+      webApp.openLink(shareUrl);
     } else {
-      // Regular browser - open in new tab
+      // Regular browser
       window.open(shareUrl, '_blank', 'noopener,noreferrer');
     }
     
@@ -179,15 +177,13 @@ export async function shareToOLX(text: string): Promise<ShareResult> {
       };
     }
     
-    // Redirect to OLX after a short delay
-    setTimeout(() => {
-      if (isTelegramMiniApp()) {
-        const webApp = getTelegramWebApp();
-        webApp?.openLink(OLX_NEW_AD_URL);
-      } else {
-        window.open(OLX_NEW_AD_URL, '_blank', 'noopener,noreferrer');
-      }
-    }, 500);
+    // Redirect to OLX immediately
+    if (isTelegramMiniApp()) {
+      const webApp = getTelegramWebApp();
+      webApp?.openLink(OLX_NEW_AD_URL);
+    } else {
+      window.open(OLX_NEW_AD_URL, '_blank', 'noopener,noreferrer');
+    }
     
     return { success: true };
     

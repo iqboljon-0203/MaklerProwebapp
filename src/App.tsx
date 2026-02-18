@@ -290,18 +290,18 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
                     <button
                         key={tool.id}
                         onClick={() => onViewChange(tool.id)}
-                        className={`group relative h-full p-3 flex flex-col justify-between items-start rounded-2xl border border-white/5 bg-[#1E1E1E] transition-all duration-300 hover:scale-[1.02] active:scale-95 ${tool.color} text-left overflow-hidden ${tool.span || 'col-span-1'}`}
+                        className={`group relative h-full p-4 flex flex-col justify-between items-start rounded-2xl border border-white/5 bg-[#1E1E1E] transition-all duration-300 hover:scale-[1.02] active:scale-95 ${tool.color} text-left overflow-hidden ${tool.span || 'col-span-1'}`}
                     >
                          {/* Subtle Gradient BG */}
                          <div className={`absolute inset-0 bg-gradient-to-br ${tool.bg} opacity-20 group-hover:opacity-40 transition-opacity`} />
                          
                          {/* Icon Box */}
-                         <div className="relative p-2.5 rounded-xl bg-white/5 backdrop-blur-sm border border-white/5 group-hover:bg-white/10 transition-colors">
+                         <div className="relative p-2 rounded-xl bg-white/5 backdrop-blur-sm border border-white/5 group-hover:bg-white/10 transition-colors">
                              {tool.icon}
                          </div>
 
                          {/* Text */}
-                         <div className="relative z-10 w-full mt-1.5">
+                         <div className="relative z-10 w-full mt-1">
                              <h3 className="font-bold text-sm text-gray-100 leading-tight">{tool.title}</h3>
                              <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mt-0.5">{tool.desc}</p>
                          </div>
