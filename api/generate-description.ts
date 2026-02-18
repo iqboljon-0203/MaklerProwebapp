@@ -54,6 +54,38 @@ interface DeepSeekResponse {
     }[];
 }
 
+// ==========================================
+// In-Memory IP Rate Limit (DDOS Protection)
+// ==========================================
+const IP_LIMIT = 20; // Max requests per IP
+const IP_WINDOW = 60 * 1000; // 1 minute window
+const ipCache = new Map<string, { count: number, expires: number }>();
+
+function isIpBlocked(ip: string): boolean {
+    const now = Date.now();
+    
+    // Cleanup old entries periodically (lazy cleanup)
+    if (ipCache.size > 1000) {
+        for (const [key, value] of ipCache.entries()) {
+            if (now > value.expires) ipCache.delete(key);
+        }
+    }
+
+    const record = ipCache.get(ip);
+    
+    if (!record || now > record.expires) {
+        ipCache.set(ip, { count: 1, expires: now + IP_WINDOW });
+        return false;
+    }
+    
+    if (record.count >= IP_LIMIT) {
+        return true;
+    }
+    
+    record.count++;
+    return false;
+}
+
 // Main Handler Update
 export default async function handler(request: Request): Promise<Response> {
   const corsHeaders = {
@@ -77,6 +109,12 @@ export default async function handler(request: Request): Promise<Response> {
     if (!deepseekApiKey) {
       const error: ErrorResponse = { error: 'AI service not configured (Missing DeepSeek Key)', code: 'API_KEY_MISSING' };
       return new Response(JSON.stringify(error), { status: 500, headers: corsHeaders });
+    }
+
+    // 0. DDOS Protection (IP based)
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    if (isIpBlocked(ip)) {
+         return new Response(JSON.stringify({ error: 'Too many requests from this IP. Please wait.', code: 'IP_RATE_LIMIT' }), { status: 429, headers: corsHeaders });
     }
 
     // Auth

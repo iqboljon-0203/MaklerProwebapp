@@ -3,6 +3,9 @@ import { WifiOff, Wifi, AlertTriangle } from 'lucide-react';
 import { useNetwork } from '@/hooks/useNetwork';
 
 // ===================================
+import { useTranslation } from 'react-i18next';
+
+// ===================================
 // Types
 // ===================================
 
@@ -20,6 +23,7 @@ export function OfflineBanner({
   showSlowConnectionWarning = true 
 }: OfflineBannerProps) {
   const { isOnline, wasOffline, effectiveType } = useNetwork();
+  const { t } = useTranslation();
   
   const isSlowConnection = effectiveType === 'slow-2g' || effectiveType === '2g';
 
@@ -56,10 +60,10 @@ export function OfflineBanner({
               </motion.div>
               <div className="flex-1">
                 <p className="text-sm font-medium">
-                  Siz hozir offlayn rejimdasiz
+                  {t('offline.title')}
                 </p>
                 <p className="text-xs text-white/80">
-                  Ba'zi funksiyalar cheklangan bo'lishi mumkin
+                  {t('offline.desc')}
                 </p>
               </div>
               {onRetry && (
@@ -67,7 +71,7 @@ export function OfflineBanner({
                   onClick={onRetry}
                   className="px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-medium transition-colors"
                 >
-                  Qayta urinish
+                  {t('offline.retry')}
                 </button>
               )}
             </div>
@@ -95,7 +99,7 @@ export function OfflineBanner({
                 <Wifi className="h-5 w-5" />
               </motion.div>
               <p className="text-sm font-medium">
-                Internet qayta ulandi! ✓
+                {t('offline.back_online')} ✓
               </p>
             </div>
           </div>
@@ -117,10 +121,10 @@ export function OfflineBanner({
               <AlertTriangle className="h-5 w-5" />
               <div className="flex-1">
                 <p className="text-sm font-medium">
-                  Sekin internet ulanish
+                  {t('offline.slow_connection')}
                 </p>
                 <p className="text-xs text-black/70">
-                  Rasmlar va videolar sekin yuklanishi mumkin
+                  {t('offline.slow_desc')}
                 </p>
               </div>
             </div>

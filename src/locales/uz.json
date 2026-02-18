@@ -23,6 +23,8 @@
     "left": "qoldi",
     "sum": "so'm",
     "image": "Rasm",
+    "slideshow": "Video Slayd-shou",
+    "branding": "Shaxsiy Brending",
     "video": "Video",
     "create": "Yaratish",
     "copied": "Nusxalandi",
@@ -177,8 +179,23 @@
       "top_right": "Tepa O'ng",
       "bottom_left": "Past Chap",
       "bottom_right": "Past O'ng",
-      "center": "Markaz"
-    }
+      "center": "Markaz",
+      "center_left": "Chapda",
+      "center_right": "O'ngda",
+      "top_center": "Yuqori Markaz",
+      "bottom_center": "Pastki Markaz",
+      "tile": "Takrorlanuvchi"
+    },
+    "watermark_type": {
+      "text": "Matn",
+      "logo": "Logotip",
+      "both": "Ikkalasi"
+    },
+    "phone": "Telefon raqam",
+    "upload_hint": "PNG / WebP, maks. 5MB",
+    "watermark_status": "Watermark holati",
+    "on": "Yoqiq",
+    "off": "O'chiq"
   },
   "upload": {
     "drag_drop": "Rasmlarni shu yerga tashlang",
@@ -200,5 +217,13 @@
     "start_btn": "Boshlash",
     "next_btn": "Keyingi",
     "skip_btn": "O'tkazib yuborish"
+  },
+  "offline": {
+    "title": "Siz hozir offlayn rejimdasiz",
+    "desc": "AI ishlashi uchun internet kerak",
+    "retry": "Qayta urinish",
+    "back_online": "Internet qayta ulandi!",
+    "slow_connection": "Internet juda sekin",
+    "slow_desc": "Rasmlar sekin yuklanishi mumkin"
   }
 }

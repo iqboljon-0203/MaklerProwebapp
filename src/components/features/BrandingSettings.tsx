@@ -71,21 +71,21 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
   // Position Options (Dynamic Translation)
   const POSITION_OPTIONS: { value: WatermarkPosition; label: string }[] = [
     { value: 'top-left', label: t('settings.positions.top_left') },
-    { value: 'top-center', label: t('settings.positions.top_center') || 'Yuqori Markaz' }, // Fallback if key missing
+    { value: 'top-center', label: t('settings.positions.top_center') },
     { value: 'top-right', label: t('settings.positions.top_right') },
-    { value: 'center-left', label: 'Chapda' }, // TODO: Add to locale
+    { value: 'center-left', label: t('settings.positions.center_left') },
     { value: 'center', label: t('settings.positions.center') },
-    { value: 'center-right', label: 'O\'ngda' }, // TODO: Add to locale
+    { value: 'center-right', label: t('settings.positions.center_right') },
     { value: 'bottom-left', label: t('settings.positions.bottom_left') },
-    { value: 'bottom-center', label: 'Pastki Markaz' }, // TODO: Add to locale
+    { value: 'bottom-center', label: t('settings.positions.bottom_center') },
     { value: 'bottom-right', label: t('settings.positions.bottom_right') },
-    { value: 'tile', label: 'Takrorlanuvchi' },
+    { value: 'tile', label: t('settings.positions.tile') },
   ];
 
   const TYPE_OPTIONS: { value: WatermarkType; label: string; icon: React.ReactNode }[] = [
-    { value: 'text', label: t('settings.watermark'), icon: <Type size={18} /> },
-    { value: 'logo', label: t('settings.logo'), icon: <ImageIcon size={18} /> },
-    { value: 'both', label: 'Ikkalasi', icon: <Layers size={18} /> }, // TODO: Add translation
+    { value: 'text', label: t('settings.watermark_type.text'), icon: <Type size={18} /> },
+    { value: 'logo', label: t('settings.watermark_type.logo'), icon: <ImageIcon size={18} /> },
+    { value: 'both', label: t('settings.watermark_type.both'), icon: <Layers size={18} /> },
   ];
   
   // ===================================
@@ -363,7 +363,7 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
                     )}
                     
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      PNG / WebP, max 5MB
+                      {t('settings.upload_hint')}
                     </p>
                   </div>
                 </div>
@@ -416,7 +416,7 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Telefon
+                        {t('settings.phone')}
                       </label>
                       <input
                         type="text"
@@ -508,7 +508,7 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
               <section>
                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Watermark {localSettings.enabled ? 'On' : 'Off'}</p>
+                    <p className="font-medium text-gray-900 dark:text-white">{t('settings.watermark_status')}: {localSettings.enabled ? t('settings.on') : t('settings.off')}</p>
                     <p className="text-sm text-gray-500">{t('settings.watermark')}</p>
                   </div>
                   <button

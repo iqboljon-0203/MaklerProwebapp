@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useImageStore, useAppStore, useSettingsStore, useUserStore } from '@/store';
 import { processImagesInQueue, getMagicFixPreset } from '@/services/imageService';
+import { compressImage } from '@/utils/image';
 import type { ImageFile } from '@/types';
 
 export function useImageProcessor() {
@@ -24,9 +25,22 @@ export function useImageProcessor() {
 
     setProcessing(true);
     
+    // Compress images first to prevent memory crash
+    const compressedFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+        setProgress({
+            current: i + 1,
+            total: files.length,
+            status: 'processing',
+            message: `Optimizing ${i + 1}/${files.length}...`
+        });
+        const compressed = await compressImage(files[i]);
+        compressedFiles.push(compressed);
+    }
+    
     try {
         const results = await processImagesInQueue(
-            files,
+            compressedFiles,
             {
                 compression: compressionConfig,
                 enhancement: getMagicFixPreset(), // Auto-apply Magic Fix as requested
