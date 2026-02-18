@@ -203,7 +203,7 @@ function App() {
       </header>
 
       {/* MainContent */}
-      <main className={`flex-1 container px-4 py-4 flex flex-col ${currentView === 'home' ? 'overflow-hidden' : 'overflow-y-auto scrollbar-hide'}`}>
+      <main className={`flex-1 container max-w-md mx-auto w-full px-4 pt-4 pb-32 flex flex-col ${currentView === 'home' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {renderContent()}
       </main>
 
