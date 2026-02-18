@@ -248,7 +248,7 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden"
+      className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl"
     >
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-6">

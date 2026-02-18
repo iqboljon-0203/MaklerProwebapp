@@ -203,7 +203,7 @@ function App() {
       </header>
 
       {/* MainContent */}
-      <main className={`flex-1 container max-w-md mx-auto w-full px-4 pt-4 pb-32 flex flex-col ${currentView === 'home' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <main className="flex-1 w-full max-w-md mx-auto px-4 pt-4 pb-32 flex flex-col overflow-y-auto overscroll-contain">
         {renderContent()}
       </main>
 
