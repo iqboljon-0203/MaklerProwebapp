@@ -15,6 +15,7 @@ interface GenerationRequest {
   platform: Platform;
   previousText?: string; // Optional: For refinement
   instruction?: string;  // Optional: User's refinement instruction
+  language?: 'uz' | 'ru';
 }
 
 interface GenerationResponse {
@@ -159,9 +160,16 @@ export default async function handler(request: Request): Promise<Response> {
     }
 
     // Generation Logic
-    const { rawInput, platform, previousText, instruction } = validation.data;
-    const systemPrompt = SYSTEM_PROMPTS[platform];
+    const { rawInput, platform, previousText, instruction, language = 'uz' } = validation.data;
     
+    // Define language names for prompt
+    const targetLangName = language === 'ru' ? 'Russian' : 'Uzbek';
+
+    let systemPrompt = SYSTEM_PROMPTS[platform];
+    
+    // FORCE LANGUAGE INSTRUCTION
+    systemPrompt += `\n\nCRITICAL RULE: The output MUST be in ${targetLangName} language. If input is in another language, TRANSLATE it.`;
+
     // Construct Messages for DeepSeek (OpenAI compatible)
     const messages = [
         { role: "system", content: systemPrompt },
@@ -414,7 +422,7 @@ function validateRequest(body: any): { valid: true; data: GenerationRequest } | 
     return { valid: false, error: 'Invalid request body' };
   }
 
-  const { rawInput, platform, previousText, instruction } = body;
+  const { rawInput, platform, previousText, instruction, language } = body;
 
   if (!rawInput && !previousText) {
       return { valid: false, error: 'Either rawInput or previousText is required' };
@@ -430,7 +438,8 @@ function validateRequest(body: any): { valid: true; data: GenerationRequest } | 
       rawInput: rawInput || "", 
       platform: platform as Platform,
       previousText,
-      instruction
+      instruction,
+      language: language as 'uz' | 'ru' || 'uz'
     } 
   };
 }

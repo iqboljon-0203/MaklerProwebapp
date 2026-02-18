@@ -7,6 +7,7 @@
     "open_app": "Открыть приложение",
     "loading": "Загрузка...",
     "processing": "Обработка...",
+    "completed": "Готово",
     "processing_count": "{{current}} из {{total}}",
     "offline": "Нет интернета",
     "select_tool": "Выберите инструмент для начала",
@@ -23,6 +24,7 @@
     "left": "осталось",
     "sum": "сум",
     "image": "Фото",
+    "upload": "Загрузить",
     "slideshow": "Видео Слайд-шоу",
     "branding": "Личный Брендинг",
     "create": "Создать",
@@ -35,7 +37,9 @@
     "warning": "Внимание",
     "saved_gallery": "Сохранено в галерею",
     "regenerate": "Пересоздать",
-    "feature_locked": "Функция заблокирована"
+    "feature_locked": "Функция заблокирована",
+    "privacy": "Политика конфиденциальности",
+    "terms": "Условия использования"
   },
   "modules": {
     "magic_fix": {
@@ -48,7 +52,7 @@
       "before": "До",
       "after": "После"
     },
-    "video_studio": {
+    "slideshow": {
       "title": "Видео 9:16",
       "desc": "Генератор Reels",
       "action": "Создать",

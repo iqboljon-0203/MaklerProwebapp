@@ -707,14 +707,18 @@ export async function applyCustomWatermark(
     };
   }
 
-  // Apply logo watermark
-  if ((settings.type === 'logo' || settings.type === 'both') && logoUrl) {
-    await drawLogoWatermark(ctx, logoUrl, img.width, img.height, settings);
-  }
-  
-  // Apply text watermark
-  if ((settings.type === 'text' || settings.type === 'both') && textWatermark) {
-    drawTextWatermark(ctx, textWatermark, img.width, img.height, settings);
+  // Apply Combined Watermark (prevents overlap)
+  if (settings.type === 'both' && logoUrl && textWatermark) {
+    await drawCombinedWatermark(ctx, logoUrl, textWatermark, img.width, img.height, settings);
+  } else {
+    // Individual Watermarks
+    if ((settings.type === 'logo' || settings.type === 'both') && logoUrl) {
+      await drawLogoWatermark(ctx, logoUrl, img.width, img.height, settings);
+    }
+    
+    if ((settings.type === 'text' || settings.type === 'both') && textWatermark) {
+      drawTextWatermark(ctx, textWatermark, img.width, img.height, settings);
+    }
   }
   
   // Apply MaklerPro branding for non-premium users
@@ -733,6 +737,138 @@ export async function applyCustomWatermark(
     height: img.height,
     size: blob.size,
   };
+}
+
+async function drawCombinedWatermark(
+  ctx: CanvasRenderingContext2D,
+  logoUrl: string,
+  textWatermark: { name: string; phone: string },
+  imageWidth: number,
+  imageHeight: number,
+  settings: CustomWatermarkSettings
+) {
+  try {
+    const logo = await loadImage(logoUrl);
+    
+    // Scale logo
+    const maxWidth = (imageWidth * settings.scale) / 100;
+    const aspectRatio = logo.width / logo.height;
+    let logoW = logo.width;
+    let logoH = logo.height;
+    
+    if (logoW > maxWidth) {
+       logoW = maxWidth;
+       logoH = maxWidth / aspectRatio;
+    }
+
+    // Measure Text
+    const fontSize = Math.max(imageWidth * 0.03, 16);
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    const nameMetrics = ctx.measureText(textWatermark.name);
+    // Reuse font for phone measurement approximation or set it explicitly
+    // Phone usually smaller
+    const phoneFontSize = fontSize * 0.85;
+    ctx.font = `${phoneFontSize}px Arial, sans-serif`;
+    const phoneMetrics = ctx.measureText(textWatermark.phone);
+    
+    // Check max width with correct fonts
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`; // Reset for name measure confirmation
+    const textW = Math.max(nameMetrics.width, phoneMetrics.width);
+    const lineHeight = fontSize * 1.3;
+    const textBlockH = textWatermark.phone ? lineHeight * 2 : lineHeight;
+
+    const gap = fontSize * 0.8; 
+    const padding = settings.padding || 20;
+
+    let logoX = 0, logoY = 0;
+    let textX = 0, textY = 0;
+    let textAlign: CanvasTextAlign = 'left';
+
+    const pos = settings.position;
+    
+    // Group dimensions
+    const groupH = Math.max(logoH, textBlockH);
+    
+    // Y position of the Group container
+    let groupY = 0;
+    if (pos.includes('top')) groupY = padding;
+    else if (pos.includes('bottom')) groupY = imageHeight - padding - groupH;
+    else groupY = (imageHeight - groupH) / 2; // center
+
+    // X position & Layout
+    if (pos.includes('left')) {
+       // [Logo] [Gap] [Text]
+       logoX = padding;
+       textX = padding + logoW + gap;
+       textAlign = 'left';
+       
+       // Center vertically
+       logoY = groupY + (groupH - logoH) / 2;
+       textY = groupY + (groupH - textBlockH) / 2;
+       
+    } else if (pos.includes('right')) {
+       // [Text] [Gap] [Logo]
+       logoX = imageWidth - padding - logoW;
+       textX = imageWidth - padding - logoW - gap;
+       textAlign = 'right';
+       
+       // Center vertically
+       logoY = groupY + (groupH - logoH) / 2;
+       textY = groupY + (groupH - textBlockH) / 2;
+       
+    } else {
+       // Center: Stacked
+       // [Logo]
+       // [Text]
+       const stackH = logoH + gap + textBlockH;
+       let stackY = 0;
+       
+       if (pos === 'top-center') stackY = padding;
+       else if (pos === 'bottom-center') stackY = imageHeight - padding - stackH;
+       else stackY = (imageHeight - stackH) / 2;
+
+       textAlign = 'center';
+       
+       // Logo centered
+       logoX = (imageWidth - logoW) / 2;
+       logoY = stackY;
+       
+       // Text centered below logo
+       textX = imageWidth / 2;
+       textY = stackY + logoH + gap;
+    }
+
+    // Draw Logo
+    ctx.globalAlpha = settings.opacity;
+    ctx.drawImage(logo, logoX, logoY, logoW, logoH);
+
+    // Draw Text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = textAlign;
+    
+    // Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    // Draw Name
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    ctx.fillText(textWatermark.name, textX, textY);
+    
+    // Draw Phone
+    if (textWatermark.phone) {
+       ctx.font = `${phoneFontSize}px Arial, sans-serif`;
+       ctx.fillText(textWatermark.phone, textX, textY + lineHeight);
+    }
+    
+    ctx.shadowColor = 'transparent';
+    ctx.globalAlpha = 1;
+    
+  } catch (error) {
+    console.error('Failed to draw combined watermark:', error);
+  }
 }
 
 // ===================================

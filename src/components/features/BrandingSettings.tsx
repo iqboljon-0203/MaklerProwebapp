@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Upload, 
-  Trash2, 
   Image as ImageIcon, 
   Type, 
   Layers,
@@ -308,70 +307,72 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
             >
               {/* Logo Upload Section */}
               <section>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  {t('settings.upload_logo')}
-                </h3>
-                
-                <div className="flex items-start gap-4">
-                  {/* Logo Preview */}
-                  <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
-                    {branding.customLogoUrl ? (
-                      <img
-                        src={branding.customLogoUrl}
-                        alt="Custom Logo"
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <ImageIcon size={32} className="text-gray-400" />
-                    )}
-                    
-                    {isUploading && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-white" />
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Upload Controls */}
-                  <div className="flex-1 space-y-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".png,.webp"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
+                    {t('settings.upload_logo')}
+                  </h3>
+                  {branding.customLogoUrl && (
                     <button
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={handleDeleteLogo}
                       disabled={isUploading}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                      className="text-red-500 hover:text-red-600 text-xs font-bold px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 transition-colors"
                     >
-                      <Upload size={18} />
-                      {branding.customLogoUrl ? t('settings.upload_logo') : t('settings.upload_logo')}
+                      {t('common.delete')}
                     </button>
+                  )}
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
+                  <div className="flex items-center gap-4">
+                    {/* Logo Preview */}
+                    <div className="relative w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-white dark:bg-black/40 flex items-center justify-center border border-gray-200 dark:border-white/10">
+                      {branding.customLogoUrl ? (
+                        <img
+                          src={branding.customLogoUrl}
+                          alt="Custom Logo"
+                          className="w-full h-full object-contain p-2"
+                        />
+                      ) : (
+                        <ImageIcon size={24} className="text-gray-300 dark:text-gray-600" />
+                      )}
+                      
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
                     
-                    {branding.customLogoUrl && (
+                    {/* Upload Controls */}
+                    <div className="flex-1">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".png,.webp"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                      
                       <button
-                        onClick={handleDeleteLogo}
+                        onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl font-medium transition-colors disabled:opacity-50"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
                       >
-                        <Trash2 size={18} />
-                        {t('common.delete')}
+                        <Upload size={16} />
+                        {branding.customLogoUrl ? t('settings.upload_logo') : t('settings.upload_logo')}
                       </button>
-                    )}
-                    
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {t('settings.upload_hint')}
-                    </p>
+                      
+                      <p className="text-[10px] text-gray-400 mt-2 text-center">
+                        {t('settings.upload_hint')}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </section>
               
               {/* Watermark Type */}
               <section>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">
                   {t('settings.watermark')}
                 </h3>
                 
@@ -380,14 +381,20 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
                     <button
                       key={option.value}
                       onClick={() => setLocalSettings({ ...localSettings, type: option.value })}
-                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                      className={`relative flex flex-col items-center justify-center gap-3 p-4 rounded-2xl border transition-all duration-200 ${
                         localSettings.type === option.value
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                          ? 'bg-blue-500/10 border-blue-500 text-blue-500 shadow-lg shadow-blue-500/20'
+                          : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10'
                       }`}
                     >
-                      {option.icon}
-                      <span className="text-sm font-medium">{option.label}</span>
+                      <div className={`p-2 rounded-full ${localSettings.type === option.value ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-white/10'}`}>
+                        {option.icon}
+                      </div>
+                      <span className="text-xs font-bold">{option.label}</span>
+                      
+                      {localSettings.type === option.value && (
+                        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-500" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -395,84 +402,81 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
               
               {/* Text Watermark Settings */}
               {(localSettings.type === 'text' || localSettings.type === 'both') && (
-                <section>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    {t('settings.custom_text')}
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t('settings.text_placeholder')}
-                      </label>
-                      <input
-                        type="text"
-                        value={localTextWatermark.name}
-                        onChange={(e) => setLocalTextWatermark({ ...localTextWatermark, name: e.target.value })}
-                        placeholder="John Doe Realty"
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        {t('settings.phone')}
-                      </label>
-                      <input
-                        type="text"
-                        value={localTextWatermark.phone}
-                        onChange={(e) => setLocalTextWatermark({ ...localTextWatermark, phone: e.target.value })}
-                        placeholder="+998 90 123 45 67"
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      />
+                <section className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-2 block">
+                      {t('settings.custom_text')}
+                    </label>
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Type className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          value={localTextWatermark.name}
+                          onChange={(e) => setLocalTextWatermark({ ...localTextWatermark, name: e.target.value })}
+                          placeholder={t('settings.text_placeholder')}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-500"
+                        />
+                      </div>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">📞</div>
+                        <input
+                          type="text"
+                          value={localTextWatermark.phone}
+                          onChange={(e) => setLocalTextWatermark({ ...localTextWatermark, phone: e.target.value })}
+                          placeholder={t('settings.phone')}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-gray-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </section>
               )}
               
-              {/* Position */}
+              {/* Visual Position Grid */}
               <section>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">
                   {t('settings.position')}
                 </h3>
                 
-                <div className="grid grid-cols-3 gap-2">
-                  {POSITION_OPTIONS.slice(0, 9).map((position) => (
-                    <button
-                      key={position.value}
-                      onClick={() => setLocalSettings({ ...localSettings, position: position.value })}
-                      className={`px-3 py-2 text-xs font-medium rounded-lg transition-all ${
-                        localSettings.position === position.value
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      {position.label}
-                    </button>
-                  ))}
+                <div className="flex flex-col items-center gap-4">
+                  <div className="grid grid-cols-3 gap-3 p-4 bg-gray-50 dark:bg-black/20 rounded-2xl border border-gray-200 dark:border-white/10">
+                    {POSITION_OPTIONS.slice(0, 9).map((position) => (
+                      <button
+                        key={position.value}
+                        onClick={() => setLocalSettings({ ...localSettings, position: position.value })}
+                        className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
+                          localSettings.position === position.value
+                            ? 'bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/30 transform scale-110'
+                            : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 hover:border-blue-300 dark:hover:border-blue-700'
+                        }`}
+                        title={position.label}
+                      >
+                        <div className={`w-3 h-3 rounded-full ${localSettings.position === position.value ? 'bg-white' : 'bg-gray-300 dark:bg-white/20'}`} />
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => setLocalSettings({ ...localSettings, position: 'tile' })}
+                    className={`flex items-center gap-2 px-6 py-2 rounded-full text-xs font-bold transition-all ${
+                      localSettings.position === 'tile'
+                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                        : 'bg-gray-100 dark:bg-white/10 text-gray-500 hover:bg-gray-200 dark:hover:bg-white/20'
+                    }`}
+                  >
+                    <Layers size={14} />
+                    {t('settings.positions.tile')}
+                  </button>
                 </div>
-                
-                <button
-                  onClick={() => setLocalSettings({ ...localSettings, position: 'tile' })}
-                  className={`w-full mt-2 px-4 py-3 text-sm font-medium rounded-xl transition-all ${
-                    localSettings.position === 'tile'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <Layers size={16} className="inline mr-2" />
-                  Tile
-                </button>
               </section>
               
               {/* Opacity & Scale */}
-              <section className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('settings.opacity')}
-                    </label>
-                    <span className="text-sm text-gray-500">{Math.round(localSettings.opacity * 100)}%</span>
+              <section className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
+                  <div className="flex justify-between mb-3 text-xs font-medium uppercase text-gray-400">
+                    <label>{t('settings.opacity')}</label>
+                    <span className="text-blue-500">{Math.round(localSettings.opacity * 100)}%</span>
                   </div>
                   <input
                     type="range"
@@ -481,16 +485,14 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
                     step="0.1"
                     value={localSettings.opacity}
                     onChange={(e) => setLocalSettings({ ...localSettings, opacity: parseFloat(e.target.value) })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
                 </div>
                 
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('settings.scale')}
-                    </label>
-                    <span className="text-sm text-gray-500">{localSettings.scale}%</span>
+                <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-white/10">
+                  <div className="flex justify-between mb-3 text-xs font-medium uppercase text-gray-400">
+                    <label>{t('settings.scale')}</label>
+                    <span className="text-blue-500">{localSettings.scale}%</span>
                   </div>
                   <input
                     type="range"
@@ -499,27 +501,45 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
                     step="1"
                     value={localSettings.scale}
                     onChange={(e) => setLocalSettings({ ...localSettings, scale: parseInt(e.target.value) })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    className="w-full h-1.5 bg-gray-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
                   />
                 </div>
               </section>
               
               {/* Enable/Disable Toggle */}
               <section>
-                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{t('settings.watermark_status')}: {localSettings.enabled ? t('settings.on') : t('settings.off')}</p>
-                    <p className="text-sm text-gray-500">{t('settings.watermark')}</p>
+                <div className={`
+                  flex items-center justify-between p-4 rounded-2xl border transition-all duration-300
+                  ${localSettings.enabled 
+                    ? 'bg-blue-500/10 border-blue-500/50' 
+                    : 'bg-gray-50 dark:bg-black/20 border-gray-200 dark:border-white/10'}
+                `}>
+                  <div className="flex items-center gap-3">
+                    <div className={`
+                      w-10 h-10 rounded-full flex items-center justify-center
+                      ${localSettings.enabled ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-white/10 text-gray-400'}
+                    `}>
+                      <Settings2 size={20} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-gray-900 dark:text-white">
+                        {t('settings.watermark_status')}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {localSettings.enabled ? t('settings.on') : t('settings.off')}
+                      </p>
+                    </div>
                   </div>
+                  
                   <button
                     onClick={() => setLocalSettings({ ...localSettings, enabled: !localSettings.enabled })}
-                    className={`relative w-14 h-8 rounded-full transition-colors ${
-                      localSettings.enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                    className={`relative w-12 h-7 rounded-full transition-colors duration-300 ${
+                      localSettings.enabled ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
                     }`}
                   >
                     <span
-                      className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                        localSettings.enabled ? 'translate-x-6' : 'translate-x-0'
+                      className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-sm ${
+                        localSettings.enabled ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -527,11 +547,11 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
               </section>
               
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-6 mt-2 border-t border-gray-200 dark:border-white/10">
                 <button
                   onClick={generatePreview}
                   disabled={isPreviewLoading}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
                 >
                   {isPreviewLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -544,12 +564,12 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
                 <button
                   onClick={handleSaveSettings}
                   disabled={isLoading}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="flex-[2] flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-blue-500/25 transition-all disabled:opacity-50 active:scale-[0.98]"
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Check size={18} />
+                    <Check size={20} strokeWidth={3} />
                   )}
                   {t('common.save')}
                 </button>
@@ -603,6 +623,8 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
             </motion.div>
           )}
         </AnimatePresence>
+
+
       </div>
     </motion.div>
   );

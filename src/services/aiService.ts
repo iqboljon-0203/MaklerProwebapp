@@ -126,7 +126,7 @@ function incrementLocalUsage(): void {
 export async function generateDescription(
   rawInput: string,
   platform: Platform,
-  options?: { previousText?: string; instruction?: string }
+  options?: { previousText?: string; instruction?: string; language?: 'uz' | 'ru' }
 ): Promise<string> {
   // 1. CHECK LIMIT BEFORE API CALL
   const limitCheck = checkUserLimit();
@@ -156,7 +156,8 @@ export async function generateDescription(
         rawInput, 
         platform,
         previousText: options?.previousText,
-        instruction: options?.instruction
+        instruction: options?.instruction,
+        language: options?.language
       }),
       signal: controller.signal
     });

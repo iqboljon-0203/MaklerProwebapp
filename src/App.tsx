@@ -147,7 +147,7 @@ function App() {
                 <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
                     {currentView === 'home' ? APP_NAME : 
                      currentView === 'enhance' ? t('modules.magic_fix.title') :
-                     currentView === 'slideshow' ? t('modules.video_studio.title') :
+                     currentView === 'slideshow' ? t('modules.slideshow.title') :
                      currentView === 'ai-convert' ? t('modules.ai.title') :
                      currentView === 'gallery' ? t('modules.gallery.title') :
                      currentView === 'settings' ? t('modules.branding.title') : APP_NAME}
@@ -234,15 +234,15 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
             id: 'enhance',
             title: t('modules.magic_fix.title'),
             desc: t('modules.magic_fix.desc'),
-            icon: <Wand2 className="h-6 w-6 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />,
+            icon: <Wand2 className="h-8 w-8 text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />,
             color: 'group-hover:border-cyan-500/50',
             bg: 'from-cyan-500/10 to-blue-500/5',
         },
         {
             id: 'slideshow',
-            title: t('modules.video_studio.title'),
-            desc: t('modules.video_studio.desc'),
-            icon: <Video className="h-6 w-6 text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]" />,
+            title: t('modules.slideshow.title'),
+            desc: t('modules.slideshow.desc'),
+            icon: <Video className="h-8 w-8 text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.5)]" />,
             color: 'group-hover:border-purple-500/50',
             bg: 'from-purple-500/10 to-pink-500/5',
         },
@@ -250,7 +250,7 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
             id: 'ai-convert',
             title: t('modules.ai.title'),
             desc: t('modules.ai.desc'),
-            icon: <FileText className="h-6 w-6 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />,
+            icon: <FileText className="h-8 w-8 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />,
             color: 'group-hover:border-emerald-500/50',
             bg: 'from-emerald-500/10 to-green-500/5',
         },
@@ -258,7 +258,7 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
             id: 'gallery',
             title: t('modules.gallery.title'),
             desc: t('modules.gallery.desc'),
-            icon: <div className="h-6 w-6 rounded-full border-2 border-amber-500/50 flex items-center justify-center text-amber-400"><span className="text-base">📸</span></div>,
+            icon: <div className="h-8 w-8 rounded-full border-2 border-amber-500/50 flex items-center justify-center text-amber-400"><span className="text-xl">📸</span></div>,
             color: 'group-hover:border-amber-500/50',
             bg: 'from-amber-500/10 to-yellow-500/5',
         },
@@ -266,15 +266,16 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
             id: 'settings',
             title: t('modules.branding.title'),
             desc: t('modules.branding.desc'),
-            icon: <Palette className="h-6 w-6 text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" />,
+            icon: <Palette className="h-8 w-8 text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" />,
             color: 'group-hover:border-blue-500/50',
+
             bg: 'from-blue-500/10 to-indigo-500/5',
             span: 'col-span-2'
         }
     ];
 
     return (
-        <div className="flex flex-col h-full space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex flex-col h-full space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Hero Text */}
             <div className="shrink-0 space-y-0.5">
                 <h1 className="text-2xl font-bold bg-gradient-to-br from-white via-gray-100 to-gray-500 bg-clip-text text-transparent">
@@ -284,12 +285,12 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
             </div>
 
             {/* Grid - Flexible Height */}
-            <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
+            <div className="flex-1 grid grid-cols-2 gap-2 min-h-0">
                 {tools.map((tool) => (
                     <button
                         key={tool.id}
                         onClick={() => onViewChange(tool.id)}
-                        className={`group relative p-4 flex flex-col justify-between items-start rounded-2xl border border-white/5 bg-[#1E1E1E] transition-all duration-300 hover:scale-[1.02] active:scale-95 ${tool.color} text-left overflow-hidden ${tool.span || 'col-span-1'}`}
+                        className={`group relative h-full p-5 flex flex-col justify-between items-start rounded-2xl border border-white/5 bg-[#1E1E1E] transition-all duration-300 hover:scale-[1.02] active:scale-95 ${tool.color} text-left overflow-hidden ${tool.span || 'col-span-1'}`}
                     >
                          {/* Subtle Gradient BG */}
                          <div className={`absolute inset-0 bg-gradient-to-br ${tool.bg} opacity-20 group-hover:opacity-40 transition-opacity`} />
@@ -301,41 +302,47 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
 
                          {/* Text */}
                          <div className="relative z-10 w-full mt-2">
-                             <h3 className="font-bold text-sm text-gray-100 leading-tight">{tool.title}</h3>
-                             <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mt-1">{tool.desc}</p>
+                             <h3 className="font-bold text-lg text-gray-100 leading-tight">{tool.title}</h3>
+                             <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1.5">{tool.desc}</p>
                          </div>
                     </button>
                 ))}
             </div>
             
-            {/* Premium Upgrade Card - Compact */}
             {!user.isPremium && (
-                <div className="shrink-0 relative overflow-hidden rounded-2xl p-4 border border-amber-500/30">
+                <div className="shrink-0 relative overflow-hidden rounded-2xl p-6 border border-amber-500/30 shadow-lg shadow-amber-900/10">
                     {/* Animated Golden Background */}
                     <div className="absolute inset-0 bg-gradient-to-br from-[#2a1b0a] via-[#452c0f] to-[#1a1005]" />
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.15),transparent_50%)]" />
                     
-                    <div className="relative z-10 flex items-center justify-between gap-3"> 
+                    <div className="relative z-10 flex items-center justify-between gap-4"> 
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-1">
-                                <span className="text-lg">👑</span>
-                                <h3 className="text-sm font-bold text-amber-100 truncate">{t('premium.upgrade_title')}</h3>
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-2xl">👑</span>
+                                <h3 className="text-lg font-bold text-amber-100 truncate">{t('premium.upgrade_title')}</h3>
                             </div>
-                            <p className="text-amber-200/60 text-[10px] leading-tight truncate">
+                            <p className="text-amber-200/70 text-sm leading-tight truncate">
                                 {t('premium.upgrade_desc')}
                             </p>
                         </div>
 
                         <button 
                             onClick={onPremiumClick}
-                            className="shrink-0 px-4 py-2 bg-[#FFD700] hover:bg-[#FFC000] active:scale-[0.95] text-black font-bold text-xs rounded-lg shadow-[0_0_15px_rgba(255,215,0,0.2)] transition-all flex items-center gap-1.5"
+                            className="shrink-0 px-6 py-3 bg-[#FFD700] hover:bg-[#FFC000] active:scale-[0.95] text-black font-bold text-base rounded-xl shadow-[0_0_20px_rgba(255,215,0,0.3)] transition-all flex items-center gap-2"
                         >
                             <span>{t('premium.cta').split(' - ')[0]}</span>
-                            <ArrowRight size={14} />
+                            <ArrowRight size={18} />
                         </button>
                     </div>
                 </div>
             )}
+
+            {/* Legal Footer */}
+            <div className="shrink-0 flex items-center justify-center gap-4 py-2 opacity-30 hover:opacity-80 transition-opacity">
+                <a href="https://telegra.ph/MaklerPro-Privacy-Policy-Template" target="_blank" rel="noreferrer" className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors uppercase font-bold tracking-widest">{t('common.privacy')}</a>
+                <span className="w-0.5 h-0.5 rounded-full bg-gray-700" />
+                <a href="https://telegra.ph/MaklerPro-Terms-Template" target="_blank" rel="noreferrer" className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors uppercase font-bold tracking-widest">{t('common.terms')}</a>
+            </div>
         </div>
     )
 }

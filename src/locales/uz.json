@@ -7,6 +7,7 @@
     "open_app": "Ilovani ochish",
     "loading": "Yuklanmoqda...",
     "processing": "Jarayonda...",
+    "completed": "Tayyor",
     "processing_count": "{{total}} tadan {{current}} tasi",
     "offline": "Internet yo'q",
     "select_tool": "Yaratishni boshlash uchun vositani tanlang",
@@ -23,6 +24,7 @@
     "left": "qoldi",
     "sum": "so'm",
     "image": "Rasm",
+    "upload": "Yuklash",
     "slideshow": "Video Slayd-shou",
     "branding": "Shaxsiy Brending",
     "video": "Video",
@@ -36,7 +38,9 @@
     "warning": "Diqqat",
     "saved_gallery": "Galereyaga saqlandi",
     "regenerate": "Qayta yaratish",
-    "feature_locked": "Bu funksiya qulflangan"
+    "feature_locked": "Bu funksiya qulflangan",
+    "privacy": "Maxfiylik Siyosati",
+    "terms": "Foydalanish Shartlari"
   },
   "modules": {
     "magic_fix": {
@@ -49,7 +53,7 @@
       "before": "Oldin",
       "after": "Keyin"
     },
-    "video_studio": {
+    "slideshow": {
       "title": "Video 9:16",
       "desc": "Reels Generator",
       "action": "Yaratish",

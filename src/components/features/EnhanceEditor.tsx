@@ -22,7 +22,9 @@ import {
   CheckCheck,
   AlertCircle,
   Zap,
-  Download
+  Download,
+  Upload,
+  ImagePlus
 } from 'lucide-react';
 import { useTelegram } from '@/hooks';
 import { useFilePicker, useImageProcessor } from '@/hooks';
@@ -430,20 +432,36 @@ export function EnhanceEditor() {
 
   if (images.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center min-h-[50vh]">
+      <div className="flex flex-col items-center justify-center p-8 text-center min-h-[60vh] animate-in fade-in zoom-in duration-500">
         <motion.div 
-          className="mb-4 rounded-full bg-primary/10 p-6"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
+          className="mb-8 relative"
+          animate={{ 
+            y: [0, -10, 0],
+            rotate: [0, 5, -5, 0]
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
         >
-          <Sparkles className="h-12 w-12 text-primary" />
+          <div className="absolute inset-0 bg-blue-500/30 blur-3xl rounded-full scale-150" />
+          <div className="relative bg-gradient-to-br from-blue-500 to-cyan-500 p-8 rounded-[2rem] shadow-2xl shadow-blue-500/30 border border-white/20">
+            <ImagePlus className="h-16 w-16 text-white drop-shadow-md" />
+          </div>
         </motion.div>
-        <h2 className="text-xl font-bold mb-2">Magic Fix</h2>
-        <p className="text-muted-foreground mb-6 max-w-sm">
+        
+        <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+          {t('modules.magic_fix.upload_title')}
+        </h2>
+        
+        <p className="text-gray-400 mb-10 max-w-sm mx-auto leading-relaxed text-base">
           {t('modules.magic_fix.upload_desc')}
         </p>
-        <Button onClick={openPicker} size="lg" className="rounded-full">
-          {t('modules.magic_fix.upload_title')}
+        
+        <Button 
+          onClick={openPicker} 
+          size="lg" 
+          className="rounded-2xl bg-white text-black hover:bg-gray-100 dark:bg-white dark:text-black dark:hover:bg-gray-200 shadow-xl shadow-white/10 transition-all active:scale-95 text-base font-bold px-10 py-6 h-auto"
+        >
+          <Upload className="mr-2 h-5 w-5" />
+          {t('common.upload')}
         </Button>
       </div>
     );
@@ -455,7 +473,13 @@ export function EnhanceEditor() {
 
   if (batchResults) {
     return (
-      <div className="flex flex-col h-full p-4">
+      <div className="flex flex-col h-full p-4 animate-in fade-in slide-in-from-bottom-8 duration-500">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <CheckCircle2 className="text-emerald-500" />
+            {t('common.completed')}
+          </h2>
+        </div>
         <BatchResults 
           results={batchResults}
           onSaveAll={handleSaveAllResults}
@@ -470,16 +494,19 @@ export function EnhanceEditor() {
   // ===================================
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      {/* Batch Mode Header */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
-          <h2 className="font-bold text-gray-200">Magic Fix</h2>
-          {images.length > 1 && (
-            <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-              {images.length} {t('common.image')}
-            </span>
-          )}
+    <div className="flex flex-col h-full space-y-4 pb-20">
+      {/* Header & Batch Controls */}
+      <div className="flex items-center justify-between px-2 py-2">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl transition-colors ${comparisonMode ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-800 text-gray-400'}`}>
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-bold text-lg text-gray-100 leading-none">Magic Fix</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              {images.length} {t('common.image')} • {selectedIds.length > 0 ? `${selectedIds.length} select` : 'All'}
+            </p>
+          </div>
         </div>
         
         {images.length > 1 && (
@@ -487,22 +514,23 @@ export function EnhanceEditor() {
             variant="ghost"
             size="sm"
             onClick={() => selectedIds.length === images.length ? deselectAll() : selectAll()}
-            className="text-xs text-gray-400"
+            className="text-xs font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 h-8 px-3 rounded-lg"
           >
             {selectedIds.length === images.length ? t('common.cancel') : t('common.confirm')}
           </Button>
         )}
       </div>
 
-      {/* Batch Progress */}
+      {/* Batch Progress Bar */}
       <AnimatePresence>
         {batchProgress && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0, scale: 0.95 }}
+            animate={{ opacity: 1, height: 'auto', scale: 1 }}
+            exit={{ opacity: 0, height: 0, scale: 0.95 }}
+            className="px-2"
           >
-            <Card className="p-4 bg-[#1E1E1E] border-emerald-500/20">
+            <Card className="p-5 bg-gray-900/80 backdrop-blur-xl border-emerald-500/30 shadow-2xl shadow-emerald-500/10 rounded-2xl">
               <BatchProgressBar progress={batchProgress} />
             </Card>
           </motion.div>
@@ -510,7 +538,10 @@ export function EnhanceEditor() {
       </AnimatePresence>
 
       {/* Main Preview Area */}
-      <div className="relative flex-1 min-h-[300px] w-full bg-black/5 rounded-2xl overflow-hidden border border-border/50">
+      <div className="relative flex-1 min-h-[350px] w-full bg-black/40 rounded-3xl overflow-hidden border border-white/5 shadow-2xl backdrop-blur-sm group">
+        {/* Background Grid Pattern */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay"></div>
+        
         {activeImage ? (
           comparisonMode && enhancedPreview ? (
             <BeforeAfterComparison
@@ -519,150 +550,172 @@ export function EnhanceEditor() {
               className="h-full w-full aspect-auto"
             />
           ) : (
-            <img
-              src={activeImage.preview}
-              alt="Original"
-              className="w-full h-full object-contain"
-            />
+            <div className="relative w-full h-full p-4 flex items-center justify-center">
+               <img
+                src={activeImage.preview}
+                alt="Original"
+                className="w-full h-full object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+              />
+              {/* Overlay Hint */}
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-medium text-gray-300 pointer-events-none">
+                 Original
+              </div>
+            </div>
           )
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
-            <ImageIcon className="h-12 w-12 opacity-50" />
-            <span>{t('modules.magic_fix.upload_desc')}</span>
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
+            <div className="p-6 rounded-full bg-white/5 border border-white/10">
+               <ImageIcon className="h-10 w-10 opacity-50" />
+            </div>
+            <span className="text-sm font-medium">{t('modules.magic_fix.upload_desc')}</span>
           </div>
         )}
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-col gap-3 p-4 bg-card rounded-xl border border-border/50 shadow-sm">
+      {/* Controls Bar (Floating) */}
+      <div className="bg-gray-900/80 backdrop-blur-xl p-4 rounded-3xl border border-white/10 shadow-2xl">
         {comparisonMode ? (
-          <div className="flex items-center gap-4">
+          <div className="flex gap-3">
             <Button 
               variant="outline" 
               onClick={handleCancel}
-              className="flex-1"
+              className="flex-1 rounded-xl h-12 border-white/10 hover:bg-white/5 hover:text-white"
             >
-              <XCircle className="mr-2 h-4 w-4" />
+              <XCircle className="mr-2 h-5 w-5" />
               {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleSave} 
-              className="flex-1 bg-green-600 hover:bg-green-700"
+              className="flex-[2] rounded-xl h-12 bg-gradient-to-r from-emerald-500 to-green-600 hover:shadow-lg hover:shadow-green-500/25 text-white font-bold"
             >
-              <CheckCircle2 className="mr-2 h-4 w-4" />
+              <CheckCircle2 className="mr-2 h-5 w-5" />
               {t('common.save')}
             </Button>
           </div>
         ) : (
-          <>
-            {/* Single image button */}
+          <div className="flex flex-col gap-3">
+            {/* Single image main action */}
             {activeImage && (
               <Button
                 onClick={handleApplyMagicFix}
                 disabled={isProcessing}
-                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/20"
-                size="lg"
+                className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 text-white font-bold text-lg shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all active:scale-[0.98]"
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    {t('common.processing')}
+                    <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                    {t('common.processing')}...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="mr-2 h-5 w-5" />
+                    <Sparkles className="mr-3 h-6 w-6" />
                     {t('modules.magic_fix.action')}
                   </>
                 )}
               </Button>
             )}
 
-            {/* Batch process button */}
+            {/* Batch Action Button */}
             {images.length > 1 && (
               <Button
                 onClick={handleBatchProcess}
                 disabled={isProcessing}
-                variant={activeImage ? "outline" : "default"}
-                className={`w-full ${!activeImage ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20' : ''}`}
-                size="lg"
+                variant={activeImage ? "secondary" : "default"}
+                className={`w-full h-12 rounded-xl font-semibold transition-all ${
+                   !activeImage 
+                     ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/20' 
+                     : 'bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5'
+                }`}
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    {t('common.processing')}
-                  </>
+                {isProcessing && !activeImage ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
-                  <>
-                    <Zap className="mr-2 h-5 w-5" />
-                    {selectedIds.length > 0 
-                      ? `${selectedIds.length} ${t('common.selected_images')}`
-                      : `${t('common.all')} (${images.length})`
-                    }
-                  </>
+                  <Zap className={`mr-2 h-5 w-5 ${!activeImage ? 'text-white' : 'text-yellow-400'}`} />
                 )}
+                {selectedIds.length > 0 
+                  ? `${selectedIds.length} ${t('common.selected_images')}`
+                  : `${t('common.all')} (${images.length})`
+                }
               </Button>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Thumbnails with selection */}
-      <div className="overflow-x-auto pb-2">
-        <div className="flex gap-2 px-1">
-          <Button 
-            variant="outline" 
-            className="h-20 w-20 shrink-0 rounded-xl border-dashed"
-            onClick={openPicker}
-          >
-            +
-          </Button>
-          {images.map((img) => {
-            const isSelected = selectedIds.includes(img.id);
-            const isActive = activeImageId === img.id;
-            const isProcessed = processedImages.some(p => p.originalId === img.id);
+      {/* Thumbnails Strip */}
+      <div className="relative">
+        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-gray-950 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-gray-950 to-transparent z-10 pointer-events-none" />
+        
+        <div className="overflow-x-auto pb-4 pt-2 -mx-4 px-4 scrollbar-hide">
+          <div className="flex gap-3 px-2">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="h-20 w-20 shrink-0 rounded-2xl border-2 border-dashed border-gray-700 bg-gray-800/50 flex items-center justify-center hover:bg-gray-800 transition-colors hover:border-gray-500"
+              onClick={openPicker}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <Upload className="h-6 w-6 text-gray-400" />
+                <span className="text-[10px] text-gray-500 font-bold">ADD</span>
+              </div>
+            </motion.button>
+            
+            {images.map((img) => {
+              const isSelected = selectedIds.includes(img.id);
+              const isActive = activeImageId === img.id;
+              const isProcessed = processedImages.some(p => p.originalId === img.id);
 
-            return (
-              <div key={img.id} className="relative shrink-0">
-                {/* Selection checkbox for batch mode */}
-                {images.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSelection(img.id);
-                    }}
-                    className={`absolute -top-1 -left-1 z-10 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                      isSelected 
-                        ? 'bg-emerald-500 border-emerald-500' 
-                        : 'bg-gray-800 border-gray-600 hover:border-gray-400'
+              return (
+                <div key={img.id} className="relative shrink-0 group">
+                  {/* Selection Checkbox */}
+                  {images.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelection(img.id);
+                      }}
+                      className={`absolute -top-2 -right-2 z-20 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all shadow-md ${
+                        isSelected 
+                          ? 'bg-blue-500 border-blue-500 scale-110' 
+                          : 'bg-gray-800 border-gray-600 hover:border-gray-400 scale-100 opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      {isSelected && <CheckCheck className="h-3.5 w-3.5 text-white" />}
+                    </button>
+                  )}
+
+                  <motion.button
+                    layoutId={`thumb-${img.id}`}
+                    onClick={() => selectImage(img.id)}
+                    className={`relative h-20 w-20 overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
+                      isActive
+                        ? 'border-blue-500 ring-4 ring-blue-500/20 scale-105 z-10'
+                        : isSelected
+                        ? 'border-blue-500/50 opacity-100'
+                        : 'border-white/5 opacity-60 hover:opacity-100 hover:border-white/20'
                     }`}
                   >
-                    {isSelected && <CheckCheck className="h-3 w-3 text-white" />}
-                  </button>
-                )}
-
-                <button
-                  onClick={() => selectImage(img.id)}
-                  className={`relative h-20 w-20 overflow-hidden rounded-xl border-2 transition-all ${
-                    isActive
-                      ? 'border-primary ring-2 ring-primary/30'
-                      : isSelected
-                      ? 'border-emerald-500/50 opacity-90'
-                      : 'border-transparent opacity-70 hover:opacity-100'
-                  }`}
-                >
-                  <img
-                    src={img.preview}
-                    alt="Thumbnail"
-                    className="h-full w-full object-cover"
-                  />
-                  {/* Processed indicator */}
-                  {isProcessed && (
-                    <div className="absolute top-1 right-1 h-3 w-3 rounded-full bg-green-500 ring-1 ring-white" />
-                  )}
-                </button>
-              </div>
-            );
-          })}
+                    <img
+                      src={img.preview}
+                      alt="Thumbnail"
+                      className="h-full w-full object-cover"
+                    />
+                    
+                    {/* Active Indicator */}
+                    {isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-t from-blue-500/50 to-transparent opacity-30" />
+                    )}
+                    
+                    {/* Processed Badge */}
+                    {isProcessed && (
+                      <div className="absolute bottom-1 right-1 h-2 w-2 rounded-full bg-green-500 ring-2 ring-black" />
+                    )}
+                  </motion.button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

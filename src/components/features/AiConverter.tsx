@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { 
   FileText, 
   Loader2, 
@@ -32,7 +32,9 @@ import {
   Zap,
   AlertCircle,
   Send,
-  ExternalLink
+  ExternalLink,
+  Instagram,
+  ShoppingBag
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -440,7 +442,7 @@ function ShareButtonsPanel({ text, telegramId }: ShareButtonsPanelProps) {
 // ===================================
 
 export function AiConverter() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { setProcessing, isProcessing } = useAppStore();
   const { user } = useUserStore();
   const { addItem } = useHistoryStore();
@@ -470,7 +472,9 @@ export function AiConverter() {
       setProcessing(true);
       hapticFeedback('impact');
       
-      const result = await generateDescription(rawInput, platform);
+      const result = await generateDescription(rawInput, platform, { 
+        language: (i18n.language === 'ru' ? 'ru' : 'uz') 
+      });
       setGeneratedText(result);
       
       // Sync with Supabase (only for non-premium users)
@@ -518,7 +522,8 @@ export function AiConverter() {
       
       const result = await generateDescription(rawInput, platform, {
         previousText: generatedText,
-        instruction
+        instruction,
+        language: (i18n.language === 'ru' ? 'ru' : 'uz')
       });
       
       setGeneratedText(result);
@@ -569,13 +574,27 @@ export function AiConverter() {
 
   const canGenerate = usageStatus.canGenerate;
 
+  const PLATFORMS: { id: Platform; label: string; icon: any; color: string }[] = [
+    { id: 'telegram', label: 'Telegram', icon: Send, color: 'text-blue-500' },
+    { id: 'instagram', label: 'Instagram', icon: Instagram, color: 'text-pink-500' },
+    { id: 'olx', label: 'OLX', icon: ShoppingBag, color: 'text-emerald-500' }
+  ];
+
   return (
     <>
-      <div className="flex flex-col h-full space-y-4">
+      <div className="flex flex-col h-full space-y-6 pb-20">
         
-        {/* Usage Counter Header */}
+        {/* Header Section */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-200">{t('modules.ai.title')}</h2>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-blue-500" />
+              {t('modules.ai.title')}
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {t('modules.ai.desc') || 'Smart Description Generator'}
+            </p>
+          </div>
           <UsageCounter 
             remaining={usageStatus.remainingGenerations === Infinity ? 99 : usageStatus.remainingGenerations} 
             max={5}
@@ -583,45 +602,59 @@ export function AiConverter() {
           />
         </div>
 
-        {/* Input Section */}
-        <Card className="p-4 bg-[#1E1E1E] border-white/5">
-          <Label className="text-gray-400 text-xs uppercase tracking-wider mb-2 block">
-            {t('modules.ai.input_label')}
-          </Label>
-          <Textarea
-            value={rawInput}
-            onChange={(e) => setRawInput(e.target.value)}
-            placeholder={t('modules.ai.input_placeholder')}
-            className="min-h-[120px] bg-black/30 border-white/10 text-gray-200 placeholder:text-gray-600 resize-none transition-colors focus:border-emerald-500/50"
-            disabled={isProcessing}
-          />
-          <div className="flex justify-end mt-2">
-            <span className={`text-xs ${rawInput.length > 500 ? 'text-amber-400' : 'text-gray-500'}`}>
-              {rawInput.length}/500
-            </span>
+        {/* Improved Input Card */}
+        <div className="space-y-4">
+          <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <Label className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
+                <FileText className="w-3 h-3" />
+                {t('modules.ai.input_label')}
+              </Label>
+              <span className={`text-[10px] font-medium ${rawInput.length > 500 ? 'text-red-500' : 'text-gray-400'}`}>
+                {rawInput.length}/500
+              </span>
+            </div>
+            
+            <Textarea
+              value={rawInput}
+              onChange={(e) => setRawInput(e.target.value)}
+              placeholder={t('modules.ai.input_placeholder')}
+              className="min-h-[120px] bg-white dark:bg-black/20 border-gray-200 dark:border-white/5 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 resize-none transition-all focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 rounded-xl text-base leading-relaxed"
+              disabled={isProcessing}
+            />
           </div>
-        </Card>
 
-        {/* Platform Selector */}
-        <Card className="p-4 bg-[#1E1E1E] border-white/5">
-          <Label className="text-gray-400 text-xs uppercase tracking-wider mb-2 block">
-            {t('modules.ai.platform')}
-          </Label>
-          <Select 
-            value={platform} 
-            onValueChange={(v) => setPlatform(v as Platform)}
-            disabled={isProcessing}
-          >
-            <SelectTrigger className="bg-black/30 border-white/10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="telegram">📱 Telegram</SelectItem>
-              <SelectItem value="instagram">📸 Instagram</SelectItem>
-              <SelectItem value="olx">🛒 OLX</SelectItem>
-            </SelectContent>
-          </Select>
-        </Card>
+          {/* Visual Platform Selector */}
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 block ml-1">
+              {t('modules.ai.platform')}
+            </Label>
+            <div className="grid grid-cols-3 gap-3">
+              {PLATFORMS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPlatform(p.id)}
+                  className={`relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all duration-200 ${
+                    platform === p.id
+                      ? 'bg-blue-500/10 border-blue-500 shadow-lg shadow-blue-500/10 scale-[1.02]'
+                      : 'bg-gray-50 dark:bg-black/20 border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <p.icon className={`w-6 h-6 ${platform === p.id ? p.color : 'text-gray-400'}`} />
+                  <span className={`text-xs font-medium ${platform === p.id ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>
+                    {p.label}
+                  </span>
+                  {platform === p.id && (
+                    <motion.div
+                      layoutId="platform-indicator"
+                      className="absolute inset-0 border-2 border-blue-500 rounded-xl pointer-events-none"
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
         {/* Generate Button */}
         <motion.div whileTap={{ scale: 0.98 }}>
@@ -629,22 +662,22 @@ export function AiConverter() {
             onClick={handleGenerate}
             disabled={isProcessing || !rawInput.trim() || !canGenerate}
             size="lg"
-            className={`w-full py-6 font-bold rounded-2xl shadow-lg transition-all duration-300 ${
+            className={`w-full py-6 font-bold text-lg rounded-2xl shadow-xl transition-all duration-300 ${
               canGenerate 
-                ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-emerald-500/20'
-                : 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-black shadow-amber-500/20'
+                ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:shadow-blue-500/30 text-white'
+                : 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-amber-500/20'
             }`}
           >
             {isProcessing ? (
               <LoadingState />
             ) : !canGenerate ? (
               <>
-                <Crown className="mr-2 h-5 w-5" />
+                <Crown className="mr-2 h-6 w-6" />
                 {t('premium.get_pro')}
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-5 w-5" />
+                <Sparkles className="mr-2 h-6 w-6" />
                 {t('modules.ai.action')}
               </>
             )}
@@ -660,15 +693,15 @@ export function AiConverter() {
               exit={{ opacity: 0, height: 0 }}
               className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20"
             >
-              <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-200/80">
+              <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-600 dark:text-amber-200/80">
                 {t('modules.ai.limit_warning', { count: usageStatus.remainingGenerations })}
               </p>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Result Section */}
+        {/* Result Area */}
         <AnimatePresence mode="wait">
           {generatedText && (
             <motion.div
@@ -676,102 +709,78 @@ export function AiConverter() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="space-y-4"
+              className="space-y-4 pt-4 border-t border-gray-200 dark:border-white/10"
             >
-              <Card className="p-4 bg-[#1E1E1E] border-emerald-500/30">
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-emerald-400 text-xs uppercase tracking-wider flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    {t('common.success')} ({platform.toUpperCase()})
-                  </Label>
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl opacity-20 group-hover:opacity-40 transition duration-500 blur"></div>
+                <Card className="relative p-5 bg-white dark:bg-[#1E1E1E] border-gray-200 dark:border-white/10 shadow-xl overflow-hidden">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                       <div className="p-1.5 rounded-lg bg-green-500/10">
+                         <Check className="w-4 h-4 text-green-500" />
+                       </div>
+                       <span className="text-sm font-bold text-gray-900 dark:text-white">
+                         {t('common.success')}
+                       </span>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={handleCopy}
-                      className={`transition-colors ${
+                      className={`h-8 px-3 rounded-lg font-medium text-xs transition-colors ${
                         copied 
-                          ? 'text-emerald-400 bg-emerald-500/10' 
-                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                          ? 'bg-green-500/10 text-green-600 dark:text-green-400' 
+                          : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'
                       }`}
                     >
-                      <AnimatePresence mode="wait">
-                        {copied ? (
-                          <motion.div
-                            key="check"
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0 }}
-                            className="flex items-center gap-1"
-                          >
-                            <Check className="h-4 w-4" />
-                            <span className="text-xs">{t('common.copied')}</span>
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="copy"
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0 }}
-                            className="flex items-center gap-1"
-                          >
-                            <Copy className="h-4 w-4" />
-                            <span className="text-xs">{t('modules.ai.copy_text')}</span>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {copied ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 mr-1" />
+                          {t('common.copied')}
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5 mr-1" />
+                          {t('modules.ai.copy_text')}
+                        </>
+                      )}
                     </Button>
-                  </motion.div>
-                </div>
-                <div className="bg-black/30 p-4 rounded-xl border border-white/5 max-h-[300px] overflow-y-auto">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-300 font-sans leading-relaxed">
-                    {generatedText}
-                  </pre>
-                </div>
-              </Card>
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-black/30 p-4 rounded-xl border border-gray-100 dark:border-white/5 max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-sans leading-relaxed">
+                      {generatedText}
+                    </pre>
+                  </div>
+                </Card>
+              </div>
 
-              {/* Refinement Actions */}
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                   variant="outline" 
-                   onClick={() => handleRefine("Make it shorter")}
-                   disabled={isProcessing}
-                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
-                >
-                   ✂️ Qisqaroq
-                </Button>
-                <Button 
-                   variant="outline" 
-                   onClick={() => handleRefine("Make it longer and more detailed")}
-                   disabled={isProcessing}
-                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
-                >
-                   📝 Uzunroq
-                </Button>
-                <Button 
-                   variant="outline" 
-                   onClick={() => handleRefine("Make it more formal")}
-                   disabled={isProcessing}
-                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
-                >
-                   👔 Ekspert
-                </Button>
-                <Button 
-                   variant="outline" 
-                   onClick={() => handleRefine("Add more emojis")}
-                   disabled={isProcessing}
-                   className="bg-[#1E1E1E]/50 text-gray-300 hover:text-white border-white/10 hover:bg-white/5 h-10"
-                >
-                   😃 Emoji+
-                </Button>
+              {/* Refinement Actions (Chips) */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "✂️ Qisqaroq", prompt: "Make it shorter" },
+                  { label: "📝 Uzunroq", prompt: "Make it longer and more detailed" },
+                  { label: "👔 Ekspert", prompt: "Make it more formal" },
+                  { label: "😃 Emoji+", prompt: "Add more emojis" }
+                ].map((action, i) => (
+                  <button 
+                     key={i}
+                     onClick={() => handleRefine(action.prompt)}
+                     disabled={isProcessing}
+                     className="px-3 py-2.5 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/10 active:scale-95 transition-all text-left flex items-center gap-2"
+                  >
+                     {action.label}
+                  </button>
+                ))}
               </div>
               
-              {/* Smart Share Buttons */}
-              <ShareButtonsPanel 
-                text={generatedText}
-                telegramId={telegramUser?.id?.toString() || ''}
-              />
+              {/* Share Buttons */}
+              <div className="pt-2">
+                <ShareButtonsPanel 
+                  text={generatedText}
+                  telegramId={telegramUser?.id?.toString() || ''}
+                />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
