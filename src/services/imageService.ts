@@ -353,7 +353,17 @@ export async function enhanceImage(
     data[i + 2] = Math.max(0, Math.min(255, b));
   }
   
-  ctx.putImageData(imageData, 0, 0);
+  // Apply sharpening if requested
+  if (config.sharpness && config.sharpness > 0) {
+    // Put the color-corrected data back first
+    ctx.putImageData(imageData, 0, 0);
+    
+    // Apply sharpening
+    applySharpen(ctx, canvas.width, canvas.height, config.sharpness / 100);
+  } else {
+    // Just put the data back
+    ctx.putImageData(imageData, 0, 0);
+  }
   
   const blob = await canvasToBlob(canvas, 'webp', 0.9);
   
@@ -368,12 +378,61 @@ export async function enhanceImage(
   };
 }
 
+// Convolution filter for sharpening
+function applySharpen(ctx: CanvasRenderingContext2D, w: number, h: number, mix: number) {
+  const weights = [0, -1, 0, -1, 5, -1, 0, -1, 0];
+  const side = Math.round(Math.sqrt(weights.length));
+  const halfSide = Math.floor(side / 2);
+  
+  const src = ctx.getImageData(0, 0, w, h);
+  const dst = ctx.createImageData(w, h);
+  
+  const srcData = src.data;
+  const dstData = dst.data;
+  
+  const alphaFac = (mix > 1) ? 1 : mix; // 0 to 1
+  
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const sy = y;
+      const sx = x;
+      const dstOff = (y * w + x) * 4;
+      
+      let r = 0, g = 0, b = 0;
+      
+      for (let cy = 0; cy < side; cy++) {
+        for (let cx = 0; cx < side; cx++) {
+          const scy = sy + cy - halfSide;
+          const scx = sx + cx - halfSide;
+          
+          if (scy >= 0 && scy < h && scx >= 0 && scx < w) {
+            const srcOff = (scy * w + scx) * 4;
+            const wt = weights[cy * side + cx];
+            
+            r += srcData[srcOff] * wt;
+            g += srcData[srcOff + 1] * wt;
+            b += srcData[srcOff + 2] * wt;
+          }
+        }
+      }
+      
+      // Blend original with sharpened based on mix amount
+      dstData[dstOff] = srcData[dstOff] * (1 - alphaFac) + r * alphaFac;
+      dstData[dstOff + 1] = srcData[dstOff + 1] * (1 - alphaFac) + g * alphaFac;
+      dstData[dstOff + 2] = srcData[dstOff + 2] * (1 - alphaFac) + b * alphaFac;
+      dstData[dstOff + 3] = srcData[dstOff + 3]; // Alpha
+    }
+  }
+  
+  ctx.putImageData(dst, 0, 0);
+}
+
 export function getMagicFixPreset(): EnhancementConfig {
   return {
-    brightness: 10,
-    contrast: 20,
-    saturation: 30,
-    sharpness: 0,
+    brightness: 5,
+    contrast: 15,
+    saturation: 20,
+    sharpness: 30, // Default sharpening for "Magic Check"
   };
 }
 

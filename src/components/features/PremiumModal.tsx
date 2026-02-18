@@ -95,11 +95,44 @@ export function PremiumModal({ isOpen, onClose, telegramId: _telegramId }: Premi
 
     try {
       if (methodId === 'telegram') {
-        const paymentLink = "https://t.me/MaklerProSupportBot?start=premium";
-        if (webApp && typeof webApp.openTelegramLink === 'function') {
-          webApp.openTelegramLink(paymentLink);
-        } else {
-          window.open(paymentLink, '_blank');
+        try {
+          // 1. Get Invoice Link from our API
+          const response = await fetch('/api/create-invoice', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              language_code: webApp?.initDataUnsafe?.user?.language_code || 'uz',
+              user_id: webApp?.initDataUnsafe?.user?.id
+            }),
+          });
+          
+          if (!response.ok) throw new Error("Failed to create invoice");
+          
+          const { invoiceLink } = await response.json();
+          
+          // 2. Open Invoice natively
+          if (invoiceLink) {
+              if (webApp && webApp.openInvoice) {
+                  webApp.openInvoice(invoiceLink, (status: string) => {
+                      if (status === 'paid') {
+                          webApp.showAlert("Premium muvaffaqiyatli faollashtirildi! 🎉");
+                          hapticFeedback('notification', 'success');
+                          onClose();
+                      } else if (status === 'failed') {
+                          hapticFeedback('notification', 'error');
+                          webApp.showAlert("To'lov amalga oshmadi.");
+                      }
+                  });
+              } else {
+                   // Fallback for browser
+                   window.location.href = invoiceLink;
+              }
+          }
+        } catch (e) {
+            console.error(e);
+            webApp?.showAlert("Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.");
         }
       } else {
         // PayMe / Click integration would go here

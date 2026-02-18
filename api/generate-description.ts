@@ -107,8 +107,10 @@ export default async function handler(request: Request): Promise<Response> {
 
   try {
     const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
-    if (!deepseekApiKey) {
-      const error: ErrorResponse = { error: 'AI service not configured (Missing DeepSeek Key)', code: 'API_KEY_MISSING' };
+    const googleApiKey = process.env.GOOGLE_API_KEY?.trim() || 'AIzaSyBCqPd1MHrobKFmG2BWhnL8optAdiRObxY';
+
+    if (!deepseekApiKey && !googleApiKey) {
+      const error: ErrorResponse = { error: 'AI service not configured (Missing Keys)', code: 'API_KEY_MISSING' };
       return new Response(JSON.stringify(error), { status: 500, headers: corsHeaders });
     }
 
@@ -160,61 +162,98 @@ export default async function handler(request: Request): Promise<Response> {
     }
 
     // Generation Logic
+    // Generation Logic
     const { rawInput, platform, previousText, instruction, language = 'uz' } = validation.data;
     
-    // Define language names for prompt
     const targetLangName = language === 'ru' ? 'Russian' : 'Uzbek';
-
     let systemPrompt = SYSTEM_PROMPTS[platform];
-    
-    // FORCE LANGUAGE INSTRUCTION
     systemPrompt += `\n\nCRITICAL RULE: The output MUST be in ${targetLangName} language. If input is in another language, TRANSLATE it.`;
 
-    // Construct Messages for DeepSeek (OpenAI compatible)
+    // Construct Messages
     const messages = [
         { role: "system", content: systemPrompt },
     ];
 
+    let userPrompt = "";
     if (previousText && instruction) {
+        userPrompt = `Please rewrite the previous post with this instruction: "${instruction}". Keep the same format and platform style.\n\nPrevious Post:\n${previousText}`;
         messages.push({ role: "assistant", content: previousText });
-        messages.push({ role: "user", content: `Please rewrite the above post with this instruction: "${instruction}". Keep the same format and platform style.` });
+        messages.push({ role: "user", content: `Please rewrite based on this: "${instruction}"` });
     } else {
-        messages.push({ role: "user", content: `Generate a property listing based on this info:\n\n${rawInput}` });
+        userPrompt = `Generate a property listing based on this info:\n\n${rawInput}`;
+        messages.push({ role: "user", content: userPrompt });
     }
 
-    const response = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${deepseekApiKey}`
-        },
-        body: JSON.stringify({
-            model: DEEPSEEK_MODEL,
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: 2000,
-            stream: false
-        }),
-    });
+    let resultText = "";
+    let errorDetails = "";
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('DeepSeek Error:', errorText);
-        
-        // Handle specific DeepSeek errors (like payment required, rate limit)
-        if (response.status === 402) {
-             throw new Error('DeepSeek balans tugadi. Iltimos keyinroq urinib koring.');
+    // 1. Try DeepSeek (Primary)
+    if (deepseekApiKey) {
+        try {
+            const response = await fetch(DEEPSEEK_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${deepseekApiKey}`
+                },
+                body: JSON.stringify({
+                    model: DEEPSEEK_MODEL,
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 2000,
+                    stream: false
+                }),
+            });
+
+            if (!response.ok) {
+                 const err = await response.text();
+                 throw new Error(`DeepSeek ${response.status}: ${err}`);
+            }
+
+            const data = await response.json() as DeepSeekResponse;
+            resultText = data?.choices?.[0]?.message?.content || "";
+        } catch (e: any) {
+            console.warn('DeepSeek failed, switching to Gemini:', e.message);
+            errorDetails += `DeepSeek: ${e.message}; `;
         }
-
-        throw new Error(`DeepSeek API Error: ${response.status} - ${errorText.substring(0, 100)}`);
     }
 
-    const data = await response.json() as DeepSeekResponse;
-    const text = data?.choices?.[0]?.message?.content;
+    // 2. Try Gemini (Backup) if DeepSeek failed or missing
+    if (!resultText && googleApiKey) {
+        try {
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`;
+            
+            // Gemini expects "contents" array with parts
+            const geminiPrompt = `${systemPrompt}\n\nUSER REQUEST:\n${userPrompt}`;
+            
+            const response = await fetch(geminiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: geminiPrompt }]
+                    }]
+                })
+            });
 
-    if (!text) throw new Error('Empty response from AI');
+            if (!response.ok) {
+                 const err = await response.text();
+                 throw new Error(`Gemini ${response.status}: ${err}`);
+            }
 
-    return new Response(JSON.stringify({ text: text.trim() }), { status: 200, headers: corsHeaders });
+            const data = await response.json();
+            resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        } catch (e: any) {
+             console.error('Gemini Failed:', e.message);
+             errorDetails += `Gemini: ${e.message}; `;
+        }
+    }
+
+    if (!resultText) {
+        throw new Error('All AI services failed. ' + errorDetails);
+    }
+
+    return new Response(JSON.stringify({ text: resultText.trim() }), { status: 200, headers: corsHeaders });
 
   } catch (error: any) {
     console.error('API Error:', error);

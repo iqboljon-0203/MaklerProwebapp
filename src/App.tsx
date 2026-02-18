@@ -339,9 +339,9 @@ function Dashboard({ onViewChange, user, onPremiumClick }: {
 
             {/* Legal Footer */}
             <div className="shrink-0 flex items-center justify-center gap-4 py-2 opacity-30 hover:opacity-80 transition-opacity">
-                <a href="https://telegra.ph/MaklerPro-Privacy-Policy-Template" target="_blank" rel="noreferrer" className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors uppercase font-bold tracking-widest">{t('common.privacy')}</a>
+                <a href="https://telegra.ph/MaklerPro---Maxfiylik-Siyosati-02-18" target="_blank" rel="noreferrer" className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors uppercase font-bold tracking-widest">{t('common.privacy')}</a>
                 <span className="w-0.5 h-0.5 rounded-full bg-gray-700" />
-                <a href="https://telegra.ph/MaklerPro-Terms-Template" target="_blank" rel="noreferrer" className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors uppercase font-bold tracking-widest">{t('common.terms')}</a>
+                <a href="https://telegra.ph/MaklerPro---Foydalanish-Shartlari-02-18" target="_blank" rel="noreferrer" className="text-[9px] text-gray-500 hover:text-gray-300 transition-colors uppercase font-bold tracking-widest">{t('common.terms')}</a>
             </div>
         </div>
     )
