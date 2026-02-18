@@ -229,5 +229,18 @@
     "back_online": "Internet qayta ulandi!",
     "slow_connection": "Internet juda sekin",
     "slow_desc": "Rasmlar sekin yuklanishi mumkin"
+  },
+  "errors": {
+    "LIMIT_EXCEEDED": "Kunlik limitingiz tugadi. PRO bo'ling!",
+    "IP_RATE_LIMIT": "Ko'p so'rov yubordingiz. Biroz kuting.",
+    "API_KEY_MISSING": "Server xatosi: AI tizimi sozlanmagan.",
+    "AUTH_INVALID": "Avtorizatsiya xatosi. Ilovani qayta yuklang.",
+    "AUTH_REQUIRED": "Tizimga kirishingiz kerak.",
+    "INVALID_REQUEST": "Loyiha so'rovi noto'g'ri.",
+    "AI_SERVICE_ERROR": "AI xizmati vaqtincha ishlamayapti.",
+    "INTERNAL_ERROR": "Ichki tizim xatosi. Keyinroq urinib ko'ring.",
+    "NETWORK_ERROR": "Internet aloqasini tekshiring.",
+    "PARSE_ERROR": "Serverdan noto'g'ri javob keldi.",
+    "UNKNOWN_ERROR": "Noma'lum xatolik."
   }
 }

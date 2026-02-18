@@ -237,7 +237,7 @@ export function EnhanceEditor() {
     deselectAll
   } = useImageStore();
   
-  const { isProcessing, setProcessing, addToast } = useAppStore();
+  const { isProcessing, setProcessing } = useAppStore();
   const { addItem } = useHistoryStore();
   const { user, branding } = useUserStore(); // Get user branding settings
   const { processFiles } = useImageProcessor();
@@ -251,7 +251,7 @@ export function EnhanceEditor() {
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const [enhancedPreview, setEnhancedPreview] = useState<string | null>(null);
   const [comparisonMode, setComparisonMode] = useState(false);
-  const [batchMode, setBatchMode] = useState(false);
+
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [batchResults, setBatchResults] = useState<BatchImageResult[] | null>(null);
   
@@ -390,7 +390,6 @@ export function EnhanceEditor() {
 
     try {
       setProcessing(true);
-      setBatchMode(true);
       setBatchResults(null);
       
       const config = getMagicFixPreset();
@@ -459,13 +458,13 @@ export function EnhanceEditor() {
 
     toast.success(`${successfulResults.length} ${t('common.success')}`);
     setBatchResults(null);
-    setBatchMode(false);
+
     deselectAll();
   }, [batchResults, addProcessedImage, addItem, deselectAll, t]);
 
   const handleDismissResults = useCallback(() => {
     setBatchResults(null);
-    setBatchMode(false);
+
   }, []);
 
   // Helper to select an image
@@ -473,7 +472,7 @@ export function EnhanceEditor() {
     setActiveImageId(id);
     setEnhancedPreview(null);
     setComparisonMode(false);
-    setBatchMode(false);
+
     setBatchResults(null);
   };
   

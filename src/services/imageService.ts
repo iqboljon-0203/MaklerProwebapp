@@ -750,7 +750,7 @@ export async function applyCustomWatermark(
   // Draw original image
   ctx.drawImage(img, 0, 0);
   
-  const { settings, logoUrl, textWatermark, isPremium } = config;
+  const { settings, logoUrl, textWatermark } = config;
   
   if (!settings.enabled) {
     // Return original if watermark disabled
@@ -780,10 +780,10 @@ export async function applyCustomWatermark(
     }
   }
   
-  // Apply MaklerPro branding for non-premium users
-  if (!isPremium) {
-    drawMaklerProBranding(ctx, img.width, img.height);
-  }
+  // Apply MaklerPro branding for non-premium users - REMOVED per request
+  // if (!isPremium) {
+  //   drawMaklerProBranding(ctx, img.width, img.height);
+  // }
   
   const blob = await canvasToBlob(canvas, 'webp', 0.9);
   
@@ -820,19 +820,13 @@ async function drawCombinedWatermark(
        logoH = maxWidth / aspectRatio;
     }
 
-    // Measure Text
+    // Measure Text (Just font size calc)
     const fontSize = Math.max(imageWidth * 0.03, 16);
-    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
-    const nameMetrics = ctx.measureText(textWatermark.name);
-    // Reuse font for phone measurement approximation or set it explicitly
-    // Phone usually smaller
     const phoneFontSize = fontSize * 0.85;
-    ctx.font = `${phoneFontSize}px Arial, sans-serif`;
-    const phoneMetrics = ctx.measureText(textWatermark.phone);
     
     // Check max width with correct fonts
-    ctx.font = `bold ${fontSize}px Arial, sans-serif`; // Reset for name measure confirmation
-    const textW = Math.max(nameMetrics.width, phoneMetrics.width);
+    // ctx.font = `bold ${fontSize}px Arial, sans-serif`; 
+    // const textW = Math.max(nameMetrics.width, phoneMetrics.width); // Unused
     const lineHeight = fontSize * 1.3;
     const textBlockH = textWatermark.phone ? lineHeight * 2 : lineHeight;
 
@@ -1135,34 +1129,7 @@ function getTextWatermarkPosition(
   return positions[position] || positions['bottom-right'];
 }
 
-// ===================================
-// MaklerPro Branding (Non-Premium)
-// ===================================
 
-function drawMaklerProBranding(
-  ctx: CanvasRenderingContext2D,
-  imageWidth: number,
-  imageHeight: number
-): void {
-  ctx.save();
-  ctx.globalAlpha = 0.15;
-  ctx.fillStyle = '#FFFFFF';
-  
-  const brandSize = Math.max(imageWidth, imageHeight) * 0.12;
-  ctx.font = `bold ${brandSize}px Arial`;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
-  
-  ctx.translate(imageWidth / 2, imageHeight / 2);
-  ctx.rotate(-45 * Math.PI / 180);
-  
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = brandSize * 0.04;
-  ctx.strokeText('MaklerPro', 0, 0);
-  ctx.fillText('MaklerPro', 0, 0);
-  
-  ctx.restore();
-}
 
 // ===================================
 // Batch Process with Custom Watermark

@@ -6,6 +6,7 @@ import { useTelegram } from '@/hooks';
 import { 
   generateDescription, 
   LimitExceededError, 
+  AIServiceError,
   getUsageStatus,
   copyToClipboard 
 } from '@/services/aiService';
@@ -503,6 +504,14 @@ export function AiConverter() {
         setShowPremiumModal(true);
         return;
       }
+
+      if (error instanceof AIServiceError) {
+          const code = error.code || 'UNKNOWN_ERROR';
+          const msg = t(`errors.${code}`, { defaultValue: error.message });
+          toast.error(t('common.error'), { description: msg });
+          hapticFeedback('notification');
+          return;
+      }
       
       toast.error(t('common.error'), {
         description: error instanceof Error ? error.message : t('common.error')
@@ -543,6 +552,14 @@ export function AiConverter() {
         hapticFeedback('notification');
         setShowPremiumModal(true);
         return;
+      }
+      
+      if (error instanceof AIServiceError) {
+          const code = error.code || 'UNKNOWN_ERROR';
+          const msg = t(`errors.${code}`, { defaultValue: error.message });
+          toast.error(t('common.error'), { description: msg });
+          hapticFeedback('notification');
+          return;
       }
       
       toast.error(t('common.error'), {

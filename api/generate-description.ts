@@ -107,7 +107,7 @@ export default async function handler(request: Request): Promise<Response> {
 
   try {
     const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
-    const googleApiKey = process.env.GOOGLE_API_KEY?.trim() || 'AIzaSyBCqPd1MHrobKFmG2BWhnL8optAdiRObxY';
+    const googleApiKey = process.env.GOOGLE_API_KEY?.trim();
 
     if (!deepseekApiKey && !googleApiKey) {
       const error: ErrorResponse = { error: 'AI service not configured (Missing Keys)', code: 'API_KEY_MISSING' };
@@ -129,7 +129,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (initData && botToken) {
       const isValid = await validateTelegramWebAppData(initData, botToken);
       if (!isValid && !isDevelopment) {
-        return new Response(JSON.stringify({ error: 'Invalid auth' }), { status: 403, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: 'Invalid auth', code: 'AUTH_INVALID' }), { status: 403, headers: corsHeaders });
       }
       try {
         const urlParams = new URLSearchParams(initData);
@@ -137,7 +137,7 @@ export default async function handler(request: Request): Promise<Response> {
         if (userJson) telegramId = String(JSON.parse(userJson).id);
       } catch {}
     } else if (!isDevelopment) {
-      return new Response(JSON.stringify({ error: 'Auth required' }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Auth required', code: 'AUTH_REQUIRED' }), { status: 401, headers: corsHeaders });
     }
 
     // Rate Limit
@@ -153,12 +153,12 @@ export default async function handler(request: Request): Promise<Response> {
     try {
         requestBody = await request.json();
     } catch {
-        return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: 'Invalid JSON', code: 'INVALID_REQUEST' }), { status: 400, headers: corsHeaders });
     }
     
     const validation = validateRequest(requestBody);
     if (!validation.valid) {
-      return new Response(JSON.stringify({ error: validation.error }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: validation.error, code: 'INVALID_REQUEST' }), { status: 400, headers: corsHeaders });
     }
 
     // Generation Logic
@@ -257,7 +257,8 @@ export default async function handler(request: Request): Promise<Response> {
 
   } catch (error: any) {
     console.error('API Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Internal Error' }), { status: 500, headers: corsHeaders });
+    const code = error.message?.includes('AI services failed') ? 'AI_SERVICE_ERROR' : 'INTERNAL_ERROR';
+    return new Response(JSON.stringify({ error: error.message || 'Internal Error', code }), { status: 500, headers: corsHeaders });
   }
 }
 

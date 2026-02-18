@@ -1,100 +1,111 @@
-# 🏠 MaklerPro - Ko'chmas Mulk AI Yordamchisi
+# 🏠 MaklerPro - Professional Ko'chmas Mulk Yordamchisi
 
-> **Telegram Mini App** - Realtor'lar uchun maxsus watermark, AI tavsiflar va video generator
+> **Telegram Mini App** - Realtor'lar uchun maxsus watermark, AI tavsiflar va video generator.
+> Hozirda **DeepSeek V3** va **Google Gemini** sun'iy intellekt modellari bilan integratsiya qilingan.
 
-## 🚀 O'rnatish
+![MaklerPro Banner](public/logo.svg)
 
-### 1. Dependencies o'rnatish
+## ✨ Asosiy Imkoniyatlar
+
+### 1. 🎨 Magic Fix (Rasmlarni Tiniqlashtirish)
+- **AI Enhancement:** Xira rasmlarni tiniqlashtiradi va ranglarini to'g'irlaydi.
+- **Auto Watermark:** Agar "Branding" yoqilgan bo'lsa, avtomatik ravishda logotip va telefon raqamingizni qo'yadi.
+- **Batch Processing:** Bir vaqtning o'zida ko'plab rasmlarni qayta ishlash.
+- **Smart Toggle:** Har bir rasm uchun logotipni yoqish/o'chirish imkoniyati.
+
+### 2. 📝 AI Copywriter (Tavsif Yozish)
+- **Platformaga moslash:** Instagram, Telegram va OLX uchun alohida uslubda post yozib beradi.
+- **Multilingual:** O'zbek va Rus tillarini to'liq qo'llab-quvvatlaydi.
+- **i18n Errors:** Xatoliklar (masalan, limit tugashi) foydalanuvchi tilida aniq ko'rsatiladi.
+- **Fallback Tizimi:** DeepSeek ishlamasa, avtomatik ravishda Google Gemini ga o'tadi.
+
+### 3. 📱 PWA (Progressive Web App)
+- **Installable:** Ilovani telefonga o'rnatib olish mumkin (Android/iOS).
+- **Offline Mode:** Internet bo'lmaganda ham asosiy interfeys ochiladi.
+- **Fast Loading:** Keshlashtirish hisobiga tezkor ishlash.
+
+### 4. 💎 Premium Tizimi
+- **Supabase Integration:** Foydalanuvchi limiti va Premium statusi bazada saqlanadi.
+- **Daily Limits:** Oddiy foydalanuvchilar uchun kunlik limit.
+- **Branding:** Premium foydalanuvchilar o'z logotiplarini yuklashi mumkin.
+
+---
+
+## 🚀 O'rnatish va Ishga Tushirish
+
+### 1. Loyihani yuklab olish
 ```bash
+git clone https://github.com/iqboljon-0203/MaklerProwebapp.git
+cd MaklerPro
 npm install
 ```
 
-### 2. Environment Variables
-`.env.example` dan `.env` ga nusxa oling va qiymatlarni to'ldiring:
-```bash
-cp .env.example .env
+### 2. Environment Variables (.env)
+`.env.example` dan `.env` fayl yaratib, quyidagi kalitlarni kiriting:
+
+```env
+# Supabase (Database & Auth)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# AI API Keys (Vercel Environment da ham bo'lishi kerak)
+DEEPSEEK_API_KEY=your-deepseek-key
+GOOGLE_API_KEY=your-gemini-key
+
+# Telegram
+TELEGRAM_BOT_TOKEN=your-bot-token
 ```
 
-Kerakli qiymatlar:
-- `VITE_SUPABASE_URL` - Supabase project URL
-- `VITE_SUPABASE_ANON_KEY` - Supabase anon key
-- `TELEGRAM_BOT_TOKEN` - Telegram Bot token
-- `DEEPSEEK_API_KEY` - DeepSeek AI API key
-
-### 3. Supabase Setup
-
-Supabase Dashboard → SQL Editor da quyidagi migration fayllarini **ketma-ket** ishga tushiring:
-
-1. `supabase/migrations/20240520_payment_setup.sql`
-2. `supabase/migrations/20240521_video_jobs.sql`
-3. `supabase/migrations/20240522_cleanup_logs.sql`
-4. `supabase/migrations/20240523_pg_cron_setup.sql` (pg_cron kerak)
-5. `supabase/migrations/20240524_custom_watermarks.sql`
-6. `supabase/migrations/20240525_share_analytics.sql`
-7. `supabase/migrations/20260205_create_history_bucket.sql`
-
-⚠️ **Muhim:** `pg_cron` extension faqat Supabase Pro+ planlarda mavjud.
-
-### 4. Development Server
+### 3. Ilovani ishga tushirish
 ```bash
 npm run dev
 ```
+Brauzerda `http://localhost:5173` manzilida ochiladi.
 
-### 5. Vercel Deployment
+### 4. Vercel Deploy
 ```bash
-vercel deploy
+vercel deploy --prod
 ```
+⚠️ **Eslatma:** Server funksiyalari (`api/`) ishlashi uchun Vercel Environment Variables bo'limiga API kalitlarini kiritishni unutmang.
 
-## 📱 Xususiyatlar
-
-### ✅ Ishlaydi
-- **Magic Fix (Enhance)** - Rasmlarni yaxshilash va watermark qo'shish
-- **AI Writer** - Ko'chmas mulk uchun AI tavsiflar generatsiyasi
-- **Video Generator** - 9:16 formatida slideshow videolar (brauzerda)
-- **Galereya** - Yaratilgan kontentlarni ko'rish
-- **Branding Settings** - Shaxsiy watermark sozlamalari
-- **Offline Banner** - Internet ulanishini ko'rsatish
-- **Premium Modal** - Pro sotib olish oynasi
-- **Daily Reset** - Kunlik limitlar avtomatik tiklanadi
-
-### ⏳ Hali ishlamaydi / Keyingi sprint
-- **To'lov integratsiyasi** - PayMe, Click, Telegram Stars
-- **Shotstack Video** - Server-side professional video
-- **Push Notifications** - Telegram bot xabarlari
-- **i18n** - Rus va ingliz tillari
+---
 
 ## 🗂️ Loyiha Tuzilmasi
 
 ```
 MaklerPro/
-├── api/                     # Vercel Serverless Functions
-│   ├── bot-webhook.ts       # Telegram bot webhook
-│   ├── generate-description.ts  # AI API
-│   ├── generate-video.ts    # Video API (Shotstack)
-│   └── payment-webhook.ts   # To'lov webhook
+├── api/                     # Backend (Vercel Serverless)
+│   ├── generate-description.ts  # AI Text Gen (DeepSeek/Gemini)
+│   ├── bot-webhook.ts       # Telegram Bot Logic
+│   └── ...
+├── public/                  # Statik fayllar (logo.svg, icons)
 ├── src/
 │   ├── components/
-│   │   ├── features/        # Asosiy komponentlar
-│   │   └── ui/              # UI elementlar
-│   ├── services/            # API va biznes logika
-│   ├── store/               # Zustand state management
-│   ├── hooks/               # Custom hooks
-│   ├── lib/                 # Utilities
-│   └── types/               # TypeScript types
-└── supabase/
-    └── migrations/          # Database migrations
+│   │   ├── features/        # Asosiy funksiyalar (Editor, AI, Gallery)
+│   │   └── ui/              # Kichik elementlar (Button, Card, Input)
+│   ├── services/            # API so'rovlar (imageService, aiService)
+│   ├── store/               # State Management (Zustand)
+│   ├── locales/             # Tarjimalar (uz.json, ru.json)
+│   └── ...
+└── vite.config.ts           # Vite & PWA sozlamalari
 ```
 
-## 🔐 Xavfsizlik
+## 🛠 Texnologiyalar
 
-- `.env` fayli **hech qachon** git ga commit qilinmasligi kerak
-- Barcha API kalitlari Vercel Environment Variables da saqlanishi kerak
-- Supabase RLS (Row Level Security) yoqilgan
-
-## 📞 Yordam
-
-Savollar bo'lsa: [@MaklerProSupport](https://t.me/MaklerProSupport)
+- **Frontend:** React 19, TypeScript, Vite
+- **Styling:** TailwindCSS 4, Shadcn/UI, Framer Motion
+- **State:** Zustand (Persist)
+- **Backend:** Vercel Serverless Functions (Node.js)
+- **Database:** Supabase (PostgreSQL)
+- **AI:** DeepSeek V3, Google Gemini 1.5 Flash
+- **PWA:** vite-plugin-pwa
 
 ---
 
-Made with ❤️ for Uzbekistan Realtors
+## 🤝 Yordam va Qo'llab-quvvatlash
+
+Savollar yoki takliflar bo'lsa:
+Telegram: [@MaklerProSupport](https://t.me/MaklerProSupport)
+
+---
+© 2026 MaklerPro. Barcha huquqlar himoyalangan.
