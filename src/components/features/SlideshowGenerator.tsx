@@ -86,7 +86,7 @@ export function SlideshowGenerator() {
       reader.onloadend = () => {
           useHistoryStore.getState().addItem({
               type: 'video',
-              title: `${t('modules.slideshow.title')} (${sourceImages.length} ${t('common.total')?.toLowerCase() || 'rasm'})`,
+              title: `${t('modules.slideshow.title')} (${sourceImages.length} ${t('common.image')})`,
               data: reader.result as string,
           });
       };
@@ -158,7 +158,7 @@ export function SlideshowGenerator() {
                             <>
                                 <Play className="h-12 w-12 mx-auto mb-2 opacity-50" />
                                 <p>{t('modules.slideshow.generate')}</p>
-                                <p className="text-xs mt-2 opacity-60">{sourceImages.length} {t('common.selected_images') || 'rasm'}</p>
+                                <p className="text-xs mt-2 opacity-60">{sourceImages.length} {t('common.selected_images')}</p>
                             </>
                         )}
                     </div>
@@ -242,20 +242,20 @@ export function SlideshowGenerator() {
                                         return;
                                     }
 
-                                    addToast({ type: 'info', title: t('common.processing'), message: 'Video botga yuklanmoqda...' });
+                                    addToast({ type: 'info', title: t('common.processing'), message: t('modules.video_studio.sending_to_bot') });
                                     
                                     // sendFileToChat throws if error occurs
                                     await sendFileToChat(blob, `video-${Date.now()}.webm`, chatId);
                                     
-                                    addToast({ type: 'success', title: t('common.success'), message: 'Video botga yuborildi' });
+                                    addToast({ type: 'success', title: t('common.success'), message: t('modules.video_studio.sent_to_bot') });
 
                                 } catch (e: any) {
                                     if (e.message === 'BOT_NOT_STARTED') {
                                         // Custom Toast with Action to Open Bot
-                                        toast("Botga xabar yubora olmadik", {
-                                            description: "Iltimos, avval botimizga kirib /start tugmasini bosing va qayta urinib ko'ring.",
+                                        toast(t('modules.video_studio.bot_error'), {
+                                            description: t('modules.video_studio.bot_start_msg'),
                                             action: {
-                                                label: "Botni ochish",
+                                                label: t('modules.video_studio.open_bot'),
                                                 onClick: () => {
                                                     const botName = "MaklerProSupportBot"; // Replace with actual bot if different
                                                     if ((window as any).Telegram?.WebApp) {
@@ -268,7 +268,7 @@ export function SlideshowGenerator() {
                                             duration: 8000,
                                         });
                                     } else {
-                                        addToast({ type: 'error', title: t('common.error'), message: 'Fayl yuborilmadi' });
+                                        addToast({ type: 'error', title: t('common.error'), message: t('modules.video_studio.send_error') });
                                     }
                                 } finally {
                                     setProcessing(false);
@@ -276,7 +276,7 @@ export function SlideshowGenerator() {
                             }}
                         >
                             <Send className="mr-2 h-4 w-4" />
-                            Botga yuborish
+                            {t('modules.video_studio.send_to_bot')}
                         </Button>
                     </div>
                 )}

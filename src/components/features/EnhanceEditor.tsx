@@ -477,7 +477,7 @@ export function EnhanceEditor() {
           <h2 className="font-bold text-gray-200">Magic Fix</h2>
           {images.length > 1 && (
             <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">
-              {images.length} {t('common.total')?.toLowerCase() || 'rasm'}
+              {images.length} {t('common.image')}
             </span>
           )}
         </div>
@@ -595,8 +595,8 @@ export function EnhanceEditor() {
                   <>
                     <Zap className="mr-2 h-5 w-5" />
                     {selectedIds.length > 0 
-                      ? `${selectedIds.length} ${t('common.selected_images') || 'rasm'}`
-                      : `${t('common.all') || 'Hammasi'} (${images.length})` // TODO: add to locale
+                      ? `${selectedIds.length} ${t('common.selected_images')}`
+                      : `${t('common.all')} (${images.length})`
                     }
                   </>
                 )}

@@ -156,6 +156,9 @@ interface SettingsState {
   
   hapticFeedback: boolean;
   setHapticFeedback: (value: boolean) => void;
+
+  hasSeenOnboarding: boolean;
+  setHasSeenOnboarding: (value: boolean) => void;
 }
 
 const defaultWatermarkConfig: WatermarkConfig = {
@@ -210,6 +213,9 @@ export const useSettingsStore = create<SettingsState>()(
         
         hapticFeedback: true,
         setHapticFeedback: (value) => set({ hapticFeedback: value }),
+        
+        hasSeenOnboarding: false,
+        setHasSeenOnboarding: (value) => set({ hasSeenOnboarding: value }),
       }),
       {
         name: 'maklerpro-settings',
@@ -219,6 +225,7 @@ export const useSettingsStore = create<SettingsState>()(
           enhancementConfig: state.enhancementConfig,
           autoSaveToGallery: state.autoSaveToGallery,
           hapticFeedback: state.hapticFeedback,
+          hasSeenOnboarding: state.hasSeenOnboarding,
         }),
       }
     ),

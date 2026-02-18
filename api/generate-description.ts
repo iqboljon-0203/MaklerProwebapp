@@ -36,9 +36,23 @@ interface ErrorResponse {
 // Google Gemini API Configuration (Free Tier)
 // ==========================================
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent';
+// ==========================================
+// DeepSeek API Configuration
+// ==========================================
+
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // ... (system prompts remain same) ...
+
+// DeepSeek API Types
+interface DeepSeekResponse {
+    choices: {
+        message: {
+            content: string;
+        };
+    }[];
+}
 
 // Main Handler Update
 export default async function handler(request: Request): Promise<Response> {
@@ -59,9 +73,9 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   try {
-    const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
-    if (!geminiApiKey) {
-      const error: ErrorResponse = { error: 'Al service not configured (Missing Gemini Key)', code: 'API_KEY_MISSING' };
+    const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
+    if (!deepseekApiKey) {
+      const error: ErrorResponse = { error: 'AI service not configured (Missing DeepSeek Key)', code: 'API_KEY_MISSING' };
       return new Response(JSON.stringify(error), { status: 500, headers: corsHeaders });
     }
 
@@ -89,7 +103,7 @@ export default async function handler(request: Request): Promise<Response> {
     if (telegramId) {
       const rateLimit = await checkAndIncrementUsage(telegramId);
       if (!rateLimit.allowed) {
-        return new Response(JSON.stringify({ error: rateLimit.error }), { status: 429, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: rateLimit.error, code: 'RATE_LIMIT_EXCEEDED' }), { status: 429, headers: corsHeaders });
       }
     }
 
@@ -110,51 +124,47 @@ export default async function handler(request: Request): Promise<Response> {
     const { rawInput, platform, previousText, instruction } = validation.data;
     const systemPrompt = SYSTEM_PROMPTS[platform];
     
-    // Construct Gemini Prompt
-    let fullPrompt = `${systemPrompt}\n\n`;
-    
+    // Construct Messages for DeepSeek (OpenAI compatible)
+    const messages = [
+        { role: "system", content: systemPrompt },
+    ];
+
     if (previousText && instruction) {
-        fullPrompt += `PREVIOUS TEXT:\n${previousText}\n\n`;
-        fullPrompt += `USER INSTRUCTION: Please rewrite the above post with this instruction: "${instruction}". Keep the same format and platform style.`;
+        messages.push({ role: "assistant", content: previousText });
+        messages.push({ role: "user", content: `Please rewrite the above post with this instruction: "${instruction}". Keep the same format and platform style.` });
     } else {
-        fullPrompt += `USER REQUEST: Generate a ${platform.toUpperCase()} description for the following property:\n\n${rawInput}`;
+        messages.push({ role: "user", content: `Generate a property listing based on this info:\n\n${rawInput}` });
     }
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${geminiApiKey}`, {
+    const response = await fetch(DEEPSEEK_API_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${deepseekApiKey}`
         },
         body: JSON.stringify({
-            contents: [{
-                parts: [{ text: fullPrompt }]
-            }],
-            generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 2000,
-            }
+            model: DEEPSEEK_MODEL,
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 2000,
+            stream: false
         }),
     });
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini Error:', errorText);
+        console.error('DeepSeek Error:', errorText);
         
-        let errorMessage = `Gemini API Error: ${response.status}`;
-        try {
-            const errorJson = JSON.parse(errorText);
-            if (errorJson.error && errorJson.error.message) {
-                errorMessage += ` - ${errorJson.error.message}`;
-            }
-        } catch {
-            errorMessage += ` - ${errorText.substring(0, 100)}`;
+        // Handle specific DeepSeek errors (like payment required, rate limit)
+        if (response.status === 402) {
+             throw new Error('DeepSeek balans tugadi. Iltimos keyinroq urinib koring.');
         }
-        
-        throw new Error(errorMessage);
+
+        throw new Error(`DeepSeek API Error: ${response.status} - ${errorText.substring(0, 100)}`);
     }
 
-    const data = await response.json();
-    const text = (data as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const data = await response.json() as DeepSeekResponse;
+    const text = data?.choices?.[0]?.message?.content;
 
     if (!text) throw new Error('Empty response from AI');
 

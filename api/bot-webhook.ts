@@ -176,12 +176,12 @@ bot.command('admin', async (ctx) => {
 });
 
 bot.command('start', async (ctx) => {
-  const lang = (ctx.user?.language_code || 'uz') as 'uz' | 'ru';
-  const content = MESSAGES[lang] || MESSAGES['uz'];
   const payload = ctx.match; // Extracts payload after /start
 
   // 1. Deep Link: ?start=premium
   if (payload === 'premium') {
+      const lang = (ctx.user?.language_code || 'uz') as 'uz' | 'ru';
+      const content = MESSAGES[lang] || MESSAGES['uz'];
       // @ts-ignore
       await ctx.api.sendInvoice(
           ctx.chat.id,
@@ -195,28 +195,19 @@ bot.command('start', async (ctx) => {
       return;
   }
 
-  // 2. Normal /start
-  // Set Menu Button
-  try {
-    await ctx.api.setChatMenuButton({
-        chat_id: ctx.chat.id,
-        menu_button: {
-            type: 'web_app',
-            text: 'MaklerPro',
-            web_app: { url: `${WEBAPP_URL}?lang=${lang}` }
-        }
-    });
-  } catch (e) {
-      console.error('Failed to set menu button', e);
-  }
-
-  await ctx.reply(content.welcome(ctx.from?.first_name || 'User'), {
-    parse_mode: 'Markdown',
+  // 2. Normal /start - Show Language Selection
+  await ctx.reply("🇺🇿 Tilni tanlang / 🇷🇺 Выберите язык", {
     reply_markup: {
-      inline_keyboard: [[{ text: content.open_app, web_app: { url: `${WEBAPP_URL}?lang=${lang}` } }]]
+      inline_keyboard: [
+        [
+          { text: "🇺🇿 O'zbekcha", callback_data: "lang_uz" },
+          { text: "🇷🇺 Русский", callback_data: "lang_ru" }
+        ]
+      ]
     }
   });
 });
+
 
 bot.command('help', async (ctx) => {
   const lang = (ctx.user?.language_code || 'uz') as 'uz' | 'ru';
@@ -270,19 +261,38 @@ bot.on('callback_query:data', async (ctx) => {
     }
 
     if (data.startsWith('lang_')) {
-        const lang = data.split('_')[1];
+        const lang = data.split('_')[1] as 'uz' | 'ru';
+        
+        // Update DB
         if (supabaseAdmin && ctx.from) {
              await supabaseAdmin.from('users').update({ language_code: lang }).eq('telegram_id', String(ctx.from.id));
         }
+
+        // Set Menu Button (Persistent for future)
+        try {
+            await ctx.api.setChatMenuButton({
+                chat_id: ctx.chat?.id,
+                menu_button: {
+                    type: 'web_app',
+                    text: 'MaklerPro',
+                    web_app: { url: `${WEBAPP_URL}?lang=${lang}` }
+                }
+            });
+        } catch (e) {
+            console.error('Failed to set menu button', e);
+        }
+
         await ctx.deleteMessage();
-        // Send welcome
-        const content = MESSAGES[lang as 'uz' | 'ru'] || MESSAGES['uz'];
-        await ctx.reply(content.welcome(ctx.from.first_name), {
+        
+        // Send Welcome Message
+        const content = MESSAGES[lang] || MESSAGES['uz'];
+        await ctx.reply(content.welcome(ctx.from?.first_name || 'User'), {
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [[{ text: content.open_app, web_app: { url: `${WEBAPP_URL}?lang=${lang}` } }]]
             }
         });
+        await ctx.answerCallbackQuery();
     }
 });
 

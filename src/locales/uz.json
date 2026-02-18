@@ -27,7 +27,14 @@
     "create": "Yaratish",
     "copied": "Nusxalandi",
     "copied_desc": "Matn clipboard'ga ko'chirildi",
-    "this_feature": "bu funksiya"
+    "this_feature": "bu funksiya",
+    "total": "Jami",
+    "selected_images": "ta rasm tanlandi",
+    "all": "Hammasi",
+    "warning": "Diqqat",
+    "saved_gallery": "Galereyaga saqlandi",
+    "regenerate": "Qayta yaratish",
+    "feature_locked": "Bu funksiya qulflangan"
   },
   "modules": {
     "magic_fix": {
@@ -48,7 +55,21 @@
       "duration": "Davomiyligi",
       "music": "Musiqa",
       "transition": "O'tish effekti",
-      "generating": "Video yaratilmoqda..."
+      "generating": "Video yaratilmoqda...",
+      "protip": "Musiqa tanlash orqali videoni yanada jozibali qiling!",
+      "generate": "Video yaratish",
+      "fade": "Silliq o'tish",
+      "slide_left": "Chapga siljish",
+      "zoom": "Yaqinlashtirish",
+      "none": "Yo'q",
+      "min_images": "Kamida 2 ta rasm tanlang",
+      "send_to_bot": "Botga yuborish",
+      "sending_to_bot": "Video botga yuklanmoqda...",
+      "sent_to_bot": "Video botga yuborildi",
+      "bot_error": "Botga xabar yubora olmadik",
+      "send_error": "Fayl yuborilmadi",
+      "bot_start_msg": "Iltimos, avval botimizga kirib /start tugmasini bosing va qayta urinib ko'ring.",
+      "open_bot": "Botni ochish"
     },
     "ai": {
       "title": "AI Matn",
@@ -109,15 +130,15 @@
     "gate_desc": "Faqat PRO versiyada mavjud. {{feature}}ni ochish uchun PRO-ga o'ting.",
     "gate_cta": "PRO sotib olish",
     "upgrade_title": "PRO-ga o'ting",
-    "upgrade_desc": "Cheksiz imkoniyatlar, 4K eksport va watermarkSIZ rasmlar.",
+    "upgrade_desc": "Cheksiz imkoniyatlar. Yuqori sifat (4K) va o'z brendingiz.",
     "cta": "Premium olish - 49,000 so'm",
     "features": {
       "unlimited": "Cheksiz foydalanish",
-      "no_watermark": "Watermarksiz yuklash",
+      "no_watermark": "Logotipsiz yuklash",
       "high_quality": "Yuqori sifat (4K)",
       "priority": "Tezkor ishlash",
       "4k": "4K video eksport",
-      "watermark": "Watermark o'chirish",
+      "watermark": "Logotipni o'chirish",
       "support": "Priority support",
       "no_branding": "MaklerPro branding yo'q"
     },
@@ -164,5 +185,20 @@
     "browse": "yoki tanlash uchun bosing",
     "max_size": "Maksimal hajmi: 15MB",
     "supported_formats": "JPG, PNG, WEBP"
+  },
+  "onboarding": {
+    "welcome_title": "MaklerPro-ga Xush Kelibsiz!",
+    "welcome_desc": "Ko'chmas mulk savdosini yangi bosqichga olib chiqing.",
+    "step1_title": " 📸 Magic Fix",
+    "step1_desc": "Xira va qorong'u rasmlarni bir zumda 4K sifatda tiniqlashtiring.",
+    "step2_title": "🎥 Video Studio",
+    "step2_desc": "Rasmlardan Instagram Reels va TikTok uchun professional videolar yasang.",
+    "step3_title": "✍️ AI Matn",
+    "step3_desc": "Uy sotish uchun jozibali matnlarni sun'iy intellekt yordamida yozing.",
+    "step4_title": "🎨 Branding",
+    "step4_desc": "O'z logotipingiz va kontaktlaringizni rasmlarga avtomatik joylashtiring.",
+    "start_btn": "Boshlash",
+    "next_btn": "Keyingi",
+    "skip_btn": "O'tkazib yuborish"
   }
 }
