@@ -182,9 +182,7 @@ bot.command('start', async (ctx) => {
   if (payload === 'premium') {
       const lang = (ctx.user?.language_code || 'uz') as 'uz' | 'ru';
       const content = MESSAGES[lang] || MESSAGES['uz'];
-      // @ts-ignore
-      await ctx.api.sendInvoice(
-          ctx.chat.id,
+      await ctx.replyWithInvoice(
           "MaklerPro Premium",
           content.premium_desc || "Premium Subscription",
           "full_premium_access",
@@ -226,9 +224,7 @@ bot.command('premium', async (ctx) => {
 
     // Send Invoice for Telegram Stars
     // Using ctx.api.sendInvoice for explicit argument control
-    // @ts-ignore
-    await ctx.api.sendInvoice(
-        ctx.chat.id,
+    await ctx.replyWithInvoice(
         "MaklerPro Premium",
         content.premium_desc || "Premium Subscription",
         "full_premium_access",
@@ -246,9 +242,7 @@ bot.on('callback_query:data', async (ctx) => {
         const lang = (ctx.user?.language_code || 'uz') as 'uz' | 'ru';
         const content = MESSAGES[lang] || MESSAGES['uz'];
         
-        // @ts-ignore
-        await ctx.api.sendInvoice(
-            ctx.chat?.id || ctx.from.id,
+        await ctx.replyWithInvoice(
             "MaklerPro Premium",
             content.premium_desc || "Premium Subscription",
             "full_premium_access",

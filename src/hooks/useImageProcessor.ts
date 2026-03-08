@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useImageStore, useAppStore, useSettingsStore, useUserStore } from '@/store';
 import { processImagesInQueue, getMagicFixPreset } from '@/services/imageService';
 import { compressImage } from '@/utils/image';
+import { toast } from 'sonner';
 import type { ImageFile } from '@/types';
 
 export function useImageProcessor() {
@@ -27,7 +28,18 @@ export function useImageProcessor() {
     
     // Compress images first to prevent memory crash
     const compressedFiles: File[] = [];
+    let skippedCount = 0;
+    
     for (let i = 0; i < files.length; i++) {
+        // Limit max file size to 25MB to prevent memory crashes during processing
+        if (files[i].size > 25 * 1024 * 1024) {
+             skippedCount++;
+             toast.error('File too large', { 
+               description: `${files[i].name} exceeds 25MB limit and was skipped.`
+             });
+             continue; // Skip this file gracefully
+        }
+    
         setProgress({
             current: i + 1,
             total: files.length,
@@ -36,6 +48,11 @@ export function useImageProcessor() {
         });
         const compressed = await compressImage(files[i]);
         compressedFiles.push(compressed);
+    }
+    
+    if (compressedFiles.length === 0) {
+      setProcessing(false);
+      return;
     }
     
     try {

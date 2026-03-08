@@ -141,84 +141,101 @@ export async function generateDescription(
   // 2. PREPARE REQUEST
   const initData = (window as any).Telegram?.WebApp?.initData || '';
   
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+    let attempt = 0;
+    const maxRetries = 2; // Total 3 attempts (1 initial + 2 retries)
 
-  try {
-    // 3. MAKE API REQUEST
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Telegram-Init-Data': initData
-      },
-      body: JSON.stringify({ 
-        rawInput, 
-        platform,
-        previousText: options?.previousText,
-        instruction: options?.instruction,
-        language: options?.language
-      }),
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
+    while (attempt <= maxRetries) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
-    // 4. PARSE RESPONSE
-    let data: APISuccessResponse | APIErrorResponse;
-    try {
-      data = await response.json();
-    } catch {
-      throw new AIServiceError('Invalid response from server', 'PARSE_ERROR');
-    }
+      try {
+        // 3. MAKE API REQUEST
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': initData
+          },
+          body: JSON.stringify({ 
+            rawInput, 
+            platform,
+            previousText: options?.previousText,
+            instruction: options?.instruction,
+            language: options?.language
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
 
-    // 5. HANDLE ERROR RESPONSES
-    if (!response.ok) {
-      const errorData = data as APIErrorResponse;
-      
-      // Handle rate limit from backend (double-check)
-      if (errorData.code === 'RATE_LIMIT_EXCEEDED') {
-        throw new LimitExceededError(
-          errorData.error || 'Kunlik limit tugadi',
-          0
-        );
+        // 4. PARSE RESPONSE
+        let data: APISuccessResponse | APIErrorResponse;
+        try {
+          data = await response.json();
+        } catch {
+          throw new AIServiceError('Invalid response from server', 'PARSE_ERROR');
+        }
+
+        // 5. HANDLE ERROR RESPONSES
+        if (!response.ok) {
+          const errorData = data as APIErrorResponse;
+          
+          if (errorData.code === 'RATE_LIMIT_EXCEEDED') {
+            throw new LimitExceededError(
+              errorData.error || 'Kunlik limit tugadi',
+              0
+            );
+          }
+          
+          // Only retry on 500s or timeouts, not 4xx client errors
+          if (response.status >= 500) {
+             throw new Error("Server error, retrying...");
+          }
+
+          throw new AIServiceError(
+            errorData.error || 'AI xizmatida xatolik',
+            errorData.code || 'API_ERROR'
+          );
+        }
+
+        // 6. SUCCESS
+        incrementLocalUsage();
+        return (data as APISuccessResponse).text;
+
+      } catch (error: unknown) {
+        clearTimeout(timeoutId);
+        
+        // Don't retry these errors
+        if (error instanceof LimitExceededError || error instanceof AIServiceError) {
+          throw error;
+        }
+
+        const isNetworkOrTimeout = 
+           (error instanceof Error && error.name === 'AbortError') || 
+           (error instanceof TypeError && error.message.includes('fetch')) ||
+           (error instanceof Error && error.message.includes('Server error'));
+
+        if (isNetworkOrTimeout && attempt < maxRetries) {
+          attempt++;
+          // Exponential backoff: 1s, 2s
+          await new Promise(res => setTimeout(res, Math.pow(2, attempt - 1) * 1000));
+          continue;
+        }
+
+        // Out of retries or other error
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new NetworkError('Sorov vaqti tugadi (Timeout). Iltimos qaytadan urinib koring.');
+        }
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new NetworkError('Serverga ulanib bolmadi. Internet aloqasini tekshiring.');
+        }
+        
+        const message = error instanceof Error ? error.message : 'Noma\'lum xatolik';
+        throw new AIServiceError(message, 'UNKNOWN_ERROR');
       }
-      
-      throw new AIServiceError(
-        errorData.error || 'AI xizmatida xatolik',
-        errorData.code || 'API_ERROR'
-      );
-    }
-
-    // 6. SUCCESS - INCREMENT LOCAL COUNTER
-    incrementLocalUsage();
-
-    // 7. RETURN GENERATED TEXT
-    const successData = data as APISuccessResponse;
-    return successData.text;
-
-  } catch (error: unknown) {
-    clearTimeout(timeoutId);
-    
-    // Re-throw our custom errors
-    if (error instanceof LimitExceededError) throw error;
-    if (error instanceof AIServiceError) throw error;
-    if (error instanceof NetworkError) throw error;
-    
-    // Handle abort/timeout
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new NetworkError('Sorov vaqti tugadi. Iltimos qaytadan urinib koring.');
     }
     
-    // Handle network errors
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new NetworkError('Serverga ulanib bolmadi. Internet aloqasini tekshiring.');
-    }
-    
-    // Unknown errors
-    const message = error instanceof Error ? error.message : 'Noma\'lum xatolik';
-    throw new AIServiceError(message, 'UNKNOWN_ERROR');
-  }
+    throw new AIServiceError('Maksimal urinishlar tugadi', 'RETRY_FAILED');
 }
 
 // ===================================

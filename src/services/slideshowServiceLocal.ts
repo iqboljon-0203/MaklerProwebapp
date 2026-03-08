@@ -250,17 +250,33 @@ async function encodeToVideo(
     canvas.height = dimensions.height;
     const ctx = canvas.getContext('2d')!;
     
-    // Use MediaRecorder to capture canvas
+    // Create canvas stream
     const stream = canvas.captureStream(fps);
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm;codecs=vp9',
-      videoBitsPerSecond: 1500000, // 1.5 Mbps
-    });
+    let mediaRecorder: MediaRecorder;
+    
+    try {
+       // Try VP9 first for better quality
+       mediaRecorder = new MediaRecorder(stream, {
+           mimeType: 'video/webm;codecs=vp9',
+           videoBitsPerSecond: 1500000, // 1.5 Mbps
+       });
+    } catch (e) {
+       console.warn("VP9 not supported, falling back to default webm codec", e);
+       try {
+           mediaRecorder = new MediaRecorder(stream, {
+               mimeType: 'video/webm;codecs=vp8',
+               videoBitsPerSecond: 1500000,
+           });
+       } catch (e2) {
+           console.warn("VP8 not supported, falling back to minimal config", e2);
+           mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+       }
+    }
     
     const chunks: Blob[] = [];
     
     mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
+      if (e.data && e.data.size > 0) {
         chunks.push(e.data);
       }
     };
@@ -270,31 +286,42 @@ async function encodeToVideo(
       resolve(blob);
     };
     
-    mediaRecorder.onerror = (event) => reject(new Error('MediaRecorder error: ' + event.type));
-    mediaRecorder.start();
+    mediaRecorder.onerror = (event) => reject(new Error('MediaRecorder error: ' + (event as any).error));
+    mediaRecorder.start(100); // Record in 100ms chunks to avoid memory spikes
     
     let frameIndex = 0;
-    const frameDuration = 1000 / fps;
     
     const renderNextFrame = async () => {
       if (frameIndex >= frames.length) {
-        mediaRecorder.stop();
+        // We need to wait a tiny bit to ensure the last frame is captured
+        setTimeout(() => mediaRecorder.stop(), 200);
         return;
       }
       
-      const frameBlob = frames[frameIndex];
-      const img = await createImageBitmap(frameBlob);
-      ctx.drawImage(img, 0, 0);
-      
-      frameIndex++;
-      
-      onProgress?.({
-        status: 'encoding',
-        progress: 80 + (frameIndex / frames.length) * 20,
-        message: `Kadr kodlanmoqda ${frameIndex}/${frames.length}...`,
-      });
-      
-      setTimeout(renderNextFrame, frameDuration);
+      try {
+          const frameBlob = frames[frameIndex];
+          const img = await createImageBitmap(frameBlob);
+          // Clear and draw
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          
+          frameIndex++;
+          
+          if (frameIndex % 5 === 0 || frameIndex === frames.length) { // Throttle progress updates
+              onProgress?.({
+                status: 'encoding',
+                progress: 80 + (frameIndex / frames.length) * 20,
+                message: `Video tuzilmoqda ${Math.round((frameIndex / frames.length) * 100)}%...`,
+              });
+          }
+          
+          // Request next frame rendering (non-blocking)
+          requestAnimationFrame(() => {
+              setTimeout(renderNextFrame, 1000 / fps);
+          });
+      } catch (err) {
+          reject(err);
+      }
     };
     
     renderNextFrame();

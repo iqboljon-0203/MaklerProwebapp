@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Play, Download, Loader2, Music, Video, Send, Sparkles, ImagePlus } from 'lucide-react';
+import { Play, Download, Loader2, Video, Send, Sparkles, ImagePlus } from 'lucide-react';
 import { useFilePicker, useImageProcessor } from '@/hooks';
 import { sendFileToChat, getTelegramChatId } from '@/services/telegramService';
 import type { TransitionType } from '@/types';
@@ -313,6 +313,12 @@ export function SlideshowGenerator() {
                                     setProcessing(true);
                                     const res = await fetch(videoUrl);
                                     const blob = await res.blob();
+                                    
+                                    if (blob.size > 4.5 * 1024 * 1024) {
+                                         addToast({ type: 'warning', title: t('common.warning'), message: "Fayl bot orqali jo'natish uchun juda katta (4.5MB dan oshiq). 'Yuklab olish' tugmasidan foydalaning." });
+                                         return;
+                                    }
+
                                     const chatId = getTelegramChatId();
                                     
                                     if (!chatId) {
