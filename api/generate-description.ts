@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { validateTelegramWebAppData } from './lib/telegram-utils.js';
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs',
 };
 
 // ==========================================
