@@ -6,6 +6,114 @@ import './index.css'
 import App from './App.tsx'
 import './i18n'; // Initialize i18n
 
+// ===========================================
+// Telegram WebApp Mock (for Local Testing)
+// ===========================================
+// @ts-ignore
+if (import.meta.env.DEV && !window.Telegram?.WebApp?.initData) {
+  console.log('🛠️ Mocking Telegram WebApp for local testing...');
+  
+  const mockUser = {
+    id: 12345678,
+    first_name: 'Test',
+    last_name: 'Makler',
+    username: 'test_makler',
+    language_code: 'uz',
+    is_premium: true
+  };
+
+  // @ts-ignore
+  window.Telegram = {
+    WebApp: {
+      initData: `user=${encodeURIComponent(JSON.stringify(mockUser))}&hash=mock_hash`,
+      initDataUnsafe: {
+        user: mockUser,
+        auth_date: Date.now(),
+        hash: 'mock_hash'
+      },
+      version: '6.0',
+      platform: 'unknown',
+      colorScheme: 'dark',
+      themeParams: {},
+      isExpanded: true,
+      viewportHeight: window.innerHeight,
+      viewportStableHeight: window.innerHeight,
+      headerColor: '#000000',
+      backgroundColor: '#000000',
+      isClosingConfirmationEnabled: false,
+      BackButton: {
+        isVisible: false,
+        show: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.BackButton.isVisible = true; console.log('Show BackBtn'); 
+        },
+        hide: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.BackButton.isVisible = false; console.log('Hide BackBtn'); 
+        },
+        onClick: (cb: any) => { (window as any)._backBtnCb = cb }
+      },
+      MainButton: {
+        text: 'CONTINUE',
+        color: '#2481cc',
+        textColor: '#ffffff',
+        isVisible: false,
+        isActive: true,
+        isProgressVisible: false,
+        show: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.MainButton.isVisible = true; console.log('Show MainBtn'); 
+        },
+        hide: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.MainButton.isVisible = false; console.log('Hide MainBtn'); 
+        },
+        enable: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.MainButton.isActive = true 
+        },
+        disable: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.MainButton.isActive = false 
+        },
+        showProgress: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.MainButton.isProgressVisible = true 
+        },
+        hideProgress: () => { 
+           // @ts-ignore
+           window.Telegram.WebApp.MainButton.isProgressVisible = false 
+        },
+        onClick: (cb: any) => { (window as any)._mainBtnCb = cb },
+        setText: (text: string) => { 
+           // @ts-ignore
+           window.Telegram.WebApp.MainButton.text = text 
+        },
+        setParams: (params: any) => { 
+           // @ts-ignore
+           Object.assign(window.Telegram.WebApp.MainButton, params) 
+        }
+      },
+      HapticFeedback: {
+        impactOccurred: (style: string) => console.log(`📳 Haptic Impact: ${style}`),
+        notificationOccurred: (type: string) => console.log(`📳 Haptic Notification: ${type}`),
+        selectionChanged: () => console.log(`📳 Haptic Selection Changed`)
+      },
+      ready: () => {},
+      expand: () => {},
+      close: () => {},
+      openTelegramLink: (url: string) => window.open(url, '_blank'),
+      openLink: (url: string) => window.open(url, '_blank'),
+      openInvoice: (url: string) => console.log(`💰 Open Invoice: ${url}`),
+      showAlert: (msg: string) => alert(msg),
+      showConfirm: (msg: string, cb: any) => cb(confirm(msg)),
+      showScanQrPopup: (params: any, cb: any) => console.log('QR Scanner'),
+      closeScanQrPopup: () => {},
+      readTextFromClipboard: (cb: any) => cb('Mock Clipboard Text')
+    }
+  };
+}
+
 // Create query client instance
 const queryClient = createQueryClient()
 

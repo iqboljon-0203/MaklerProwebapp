@@ -48,17 +48,20 @@ export async function uploadFileToStorage(
 export async function addToHistory(
   item: Omit<HistoryItem, 'id' | 'created_at'>
 ) {
-    const user = useUserStore.getState().user;
-    if (!user) throw new Error("User not found");
-    // Ensure telegramId is number if possible, or string. DB expects bigint.
-    // user.telegramId in store is likely number.
+    const { user } = useUserStore.getState();
+    const telegramId = user?.telegramId || (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    
+    if (!telegramId) {
+        console.error("User context missing for history save");
+        throw new Error("User context missing");
+    }
     
     if (!supabase) throw new Error('Supabase client not initialized');
 
     const { data, error } = await supabase
         .from('user_history')
         .insert({
-            telegram_id: user.telegramId,
+            telegram_id: telegramId,
             type: item.type,
             title: item.title,
             data: item.data, // This should be URL for files

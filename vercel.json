@@ -9,6 +9,10 @@
     {
       "path": "/api/check-expiry",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cleanup-storage",
+      "schedule": "0 1 * * *"
     }
   ]
 }

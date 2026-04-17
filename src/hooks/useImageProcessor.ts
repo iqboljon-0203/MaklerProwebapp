@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useImageStore, useAppStore, useSettingsStore, useUserStore } from '@/store';
 import { processImagesInQueue, getMagicFixPreset } from '@/services/imageService';
 import { compressImage } from '@/utils/image';
@@ -20,34 +21,51 @@ export function useImageProcessor() {
   const { user } = useUserStore();
   
   const { compressionConfig, watermarkConfig } = useSettingsStore();
+  const { t } = useTranslation();
 
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
     setProcessing(true);
     
-    // Compress images first to prevent memory crash
+    // Limit batch size
+    if (files.length > 20) {
+        toast.error('Limit exceeded', { 
+            description: `Maximum 20 images allowed at once. Please split your upload.` 
+        });
+        setProcessing(false);
+        return;
+    }
+
+    // Phase 1: Pre-Process (Size validation & Pre-compression)
     const compressedFiles: File[] = [];
-    let skippedCount = 0;
+    const skippedFiles: string[] = [];
     
     for (let i = 0; i < files.length; i++) {
-        // Limit max file size to 25MB to prevent memory crashes during processing
-        if (files[i].size > 25 * 1024 * 1024) {
-             skippedCount++;
-             toast.error('File too large', { 
-               description: `${files[i].name} exceeds 25MB limit and was skipped.`
-             });
-             continue; // Skip this file gracefully
+        const currentFile = files[i];
+
+        // 25MB Hard limit for memory safety
+        if (currentFile.size > 25 * 1024 * 1024) {
+             skippedFiles.push(currentFile.name);
+             continue; 
         }
     
         setProgress({
             current: i + 1,
             total: files.length,
             status: 'processing',
-            message: `Optimizing ${i + 1}/${files.length}...`
+            message: `📦 ${t('common.processing')} ${i + 1}/${files.length}...`
         });
-        const compressed = await compressImage(files[i]);
+
+        const compressed = await compressImage(currentFile);
         compressedFiles.push(compressed);
+    }
+
+    // Show skipped files summary if any
+    if (skippedFiles.length > 0) {
+        toast.warning(`${skippedFiles.length} files skipped`, {
+            description: `Files exceeded 25MB: ${skippedFiles.join(', ')}`
+        });
     }
     
     if (compressedFiles.length === 0) {
@@ -95,8 +113,8 @@ export function useImageProcessor() {
         
         addToast({
             type: 'success',
-            title: 'Загрузка завершена',
-            message: `Обработано ${results.length} фото`,
+            title: t('common.success'),
+            message: `✨ ${results.length} photos ready!`,
         });
 
     } catch (error) {

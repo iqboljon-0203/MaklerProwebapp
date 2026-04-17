@@ -43,8 +43,8 @@ export async function getUserProfile(telegramUser?: TelegramUser): Promise<UserP
   const telegramId = String(telegramUser.id);
   
   if (!supabase) {
-    console.warn('Supabase not configured, using default profile');
-    return { ...DEFAULT_USER, telegramId };
+    console.warn('Supabase not configured');
+    throw new Error('Supabase not configured');
   }
 
   try {
@@ -91,8 +91,9 @@ export async function getUserProfile(telegramUser?: TelegramUser): Promise<UserP
       premiumUntil: data.premium_until
     };
   } catch (error) {
-    console.error('Error fetching user profile:', error);
-    return { ...DEFAULT_USER, telegramId };
+    console.error('Network or Database Error in getUserProfile:', error);
+    // CRITICAL: We throw or return null so App.tsx DOES NOT overwrite the Zustand cache with DEFAULT_USER
+    throw error;
   }
 }
 

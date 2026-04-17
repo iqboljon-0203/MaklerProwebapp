@@ -17,6 +17,7 @@ interface SlideshowRequest {
   transition: 'fade' | 'slideLeft' | 'slideRight' | 'zoom' | 'none';
   transitionDuration: number; // seconds
   aspectRatio: '9:16' | '16:9' | '1:1';
+  music?: 'luxury' | 'energetic' | 'calm' | 'none';
   userId: string;
   callbackUrl?: string;
 }
@@ -130,6 +131,12 @@ function buildShotstackTimeline(config: SlideshowRequest): ShotstackRenderReques
     zoom: 'zoom',
     none: '',
   };
+
+  const musicMap: Record<string, string> = {
+    luxury: 'https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/music/acoustic.mp3',
+    energetic: 'https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/music/dance.mp3',
+    calm: 'https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/music/chill.mp3',
+  };
   
   const shotstackTransition = transitionMap[transition] || '';
   
@@ -174,6 +181,10 @@ function buildShotstackTimeline(config: SlideshowRequest): ShotstackRenderReques
   return {
     timeline: {
       background: '#000000',
+      soundtrack: config.music && config.music !== 'none' ? {
+          src: musicMap[config.music],
+          effect: 'fadeOut'
+      } : undefined,
       tracks: [
         {
           clips,

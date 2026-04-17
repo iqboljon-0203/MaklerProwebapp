@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Play, Download, Loader2, Video, Send, Sparkles, ImagePlus } from 'lucide-react';
 import { useFilePicker, useImageProcessor } from '@/hooks';
 import { sendFileToChat, getTelegramChatId } from '@/services/telegramService';
+import { uploadFileToStorage } from '@/services/historyService';
 import type { TransitionType } from '@/types';
 import { useTranslation } from 'react-i18next';
 
@@ -36,9 +37,11 @@ export function SlideshowGenerator() {
   // Video generation state
   const [duration, setDuration] = useState(3);
   const [transition, setTransition] = useState<TransitionType>('fade');
+  const [music, setMusic] = useState<'luxury' | 'energetic' | 'calm' | 'none'>('luxury');
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [progress, setProgressState] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [jobId, setJobId] = useState<string | null>(null);
   
   // File picker for fallback
   const { processFiles } = useImageProcessor();
@@ -63,42 +66,84 @@ export function SlideshowGenerator() {
     try {
       setProcessing(true);
       setVideoUrl(null);
+      setJobId(null);
       setProgressState(0);
+      setStatusMessage(t('modules.ai.loading.generating'));
+
+      // 1. Prepare images for cloud render
+      // We need public URLs. Assuming images are already uploaded or we use local blobs?
+      // Actually, Shotstack needs URLs. In this flow, we should upload them first or assume they are in Supabase.
+      // For now, we'll try to get URLs from historyService or similar.
+      const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+      const userId = telegramUser?.id?.toString() || 'anonymous';
+
+      addToast({ type: 'info', title: t('common.processing'), message: 'Uploading frames...' });
       
-      // Use local (browser-based) video generation
-      const blob = await generateSlideshowLocal({
-        images: sourceImages,
-        duration: duration,
-        transition: transition,
-        transitionDuration: 1,
-        aspectRatio: '9:16',
-        fps: 30,
-        quality: 'medium'
-      }, (p: SlideshowProgress) => {
-         setProgressState(p.progress);
-         setStatusMessage(p.message);
+      const imageUrls = await Promise.all(sourceImages.map(async (img) => {
+          if (img.url.startsWith('http')) return img.url;
+          // If it's a blob, upload it
+          const res = await fetch(img.url);
+          const blob = await res.blob();
+          return await uploadFileToStorage(blob, 'temp_frames', userId);
+      }));
+
+      // 2. Call Backend API
+      const response = await fetch('/api/generate-video', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              userId,
+              images: imageUrls.map(url => ({ url, duration })),
+              transition,
+              transitionDuration: 1,
+              aspectRatio: '9:16',
+              music: music
+          })
       });
-      
-      const url = URL.createObjectURL(blob);
-      setVideoUrl(url);
-      
-      // Save to history
-      const reader = new FileReader();
-      reader.onloadend = () => {
-          useHistoryStore.getState().addItem({
-              type: 'video',
-              title: `${t('modules.slideshow.title')} (${sourceImages.length} ${t('common.image')})`,
-              data: reader.result as string,
-          });
-      };
-      reader.readAsDataURL(blob);
-      
-      addToast({ type: 'success', title: t('common.success'), message: t('common.saved_gallery') });
-      
-    } catch (error) {
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Generation failed');
+
+      const newJobId = data.jobId;
+      setJobId(newJobId);
+
+      // 3. Poll for status
+      const pollInterval = setInterval(async () => {
+          try {
+              const statusRes = await fetch(`/api/video-status?jobId=${newJobId}`);
+              const statusData = await statusRes.json();
+              
+              if (statusData.status === 'completed' && statusData.videoUrl) {
+                  clearInterval(pollInterval);
+                  setVideoUrl(statusData.videoUrl);
+                  setProcessing(false);
+                  setProgressState(100);
+                  
+                  // Save to history
+                  useHistoryStore.getState().addItem({
+                      type: 'video',
+                      title: `${t('modules.slideshow.title')} (${sourceImages.length} ${t('common.image')})`,
+                      data: statusData.videoUrl,
+                  });
+                  
+                  addToast({ type: 'success', title: t('common.success'), message: 'Video ready!' });
+              } else if (statusData.status === 'failed') {
+                  clearInterval(pollInterval);
+                  throw new Error(statusData.error || 'Video render failed');
+              } else {
+                  setProgressState(statusData.progress || 0);
+                  setStatusMessage(`${t('common.processing')}: ${statusData.status}...`);
+              }
+          } catch (e) {
+              clearInterval(pollInterval);
+              setProcessing(false);
+              addToast({ type: 'error', title: t('common.error'), message: 'Polling failed' });
+          }
+      }, 3000);
+
+    } catch (error: any) {
       console.error(error);
-      addToast({ type: 'error', title: t('common.error'), message: t('common.error') });
-    } finally {
+      addToast({ type: 'error', title: t('common.error'), message: error.message });
       setProcessing(false);
     }
   };
@@ -255,6 +300,33 @@ export function SlideshowGenerator() {
                     </div>
                 </div>
 
+                {/* Music Selection */}
+                <div className="space-y-3">
+                    <Label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
+                       🎵 Background Music
+                    </Label>
+                    <div className="grid grid-cols-4 gap-2">
+                        {[
+                            { id: 'luxury', label: 'Luxury' },
+                            { id: 'energetic', label: 'Upbeat' },
+                            { id: 'calm', label: 'Calm' },
+                            { id: 'none', label: 'Off' }
+                        ].map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => setMusic(item.id as any)}
+                                className={`py-2 rounded-lg text-[10px] font-bold transition-all border ${
+                                    music === item.id 
+                                        ? 'bg-purple-500 border-purple-400 text-white shadow-lg shadow-purple-500/20' 
+                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                }`}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Main Action Button */}
                 <Button 
                     className={`w-full h-14 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all active:scale-[0.98] ${
@@ -312,14 +384,10 @@ export function SlideshowGenerator() {
                                 try {
                                     setProcessing(true);
                                     const res = await fetch(videoUrl);
-                                    const blob = await res.blob();
+                                    const videoBlob = await res.blob();
                                     
-                                    if (blob.size > 4.5 * 1024 * 1024) {
-                                         addToast({ type: 'warning', title: t('common.warning'), message: "Fayl bot orqali jo'natish uchun juda katta (4.5MB dan oshiq). 'Yuklab olish' tugmasidan foydalaning." });
-                                         return;
-                                    }
-
                                     const chatId = getTelegramChatId();
+                                    const telegramUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
                                     
                                     if (!chatId) {
                                         toast.error(t('common.error'), {
@@ -329,7 +397,17 @@ export function SlideshowGenerator() {
                                     }
 
                                     addToast({ type: 'info', title: t('common.processing'), message: t('modules.video_studio.sending_to_bot') });
-                                    await sendFileToChat(blob, `video-${Date.now()}.webm`, chatId);
+                                    
+                                    // 1. Upload to Supabase Storage (bypasses Vercel 4.5MB limit)
+                                    const publicUrl = await uploadFileToStorage(
+                                        videoBlob, 
+                                        'videos', 
+                                        telegramUser?.id || 'anonymous'
+                                    );
+
+                                    // 2. Send via URL to Telegram API
+                                    await sendFileToChat(publicUrl, `video-${Date.now()}.webm`, chatId, 'video');
+                                    
                                     addToast({ type: 'success', title: t('common.success'), message: t('modules.video_studio.sent_to_bot') });
 
                                 } catch (e: any) {

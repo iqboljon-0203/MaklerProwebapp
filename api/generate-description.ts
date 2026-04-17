@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { validateTelegramWebAppData } from './lib/telegram-utils';
 
 export const config = {
   runtime: 'edge',
@@ -16,6 +17,7 @@ interface GenerationRequest {
   previousText?: string; // Optional: For refinement
   instruction?: string;  // Optional: User's refinement instruction
   language?: 'uz' | 'ru';
+  tone?: 'expert' | 'emotional' | 'minimalist';
 }
 
 interface GenerationResponse {
@@ -163,11 +165,20 @@ export default async function handler(request: Request): Promise<Response> {
 
     // Generation Logic
     // Generation Logic
-    const { rawInput, platform, previousText, instruction, language = 'uz' } = validation.data;
-    
     const targetLangName = language === 'ru' ? 'Russian' : 'Uzbek';
+    const { rawInput, platform, previousText, instruction, tone = 'expert' } = validation.data;
+
     let systemPrompt = SYSTEM_PROMPTS[platform];
-    systemPrompt += `\n\nCRITICAL RULE: The output MUST be in ${targetLangName} language. If input is in another language, TRANSLATE it.`;
+    systemPrompt += `\n\nCRITICAL RULE: The output MUST be in ${targetLangName} language.`;
+    
+    // Add Tone Specific Instructions
+    if (tone === 'emotional') {
+      systemPrompt += `\nTONE: Highly emotional, uses words like "Beautiful", "Dream home", "Perfect for family". Use more heart and home emojis.`;
+    } else if (tone === 'minimalist') {
+      systemPrompt += `\nTONE: Minimalist. Only key facts. No "marketing fluff". Very concise. Bullet points preferred.`;
+    } else {
+      systemPrompt += `\nTONE: Professional Real Estate Expert. Balanced and trustworthy.`;
+    }
 
     // Construct Messages
     const messages = [
@@ -340,65 +351,7 @@ LANGUAGE RULE: Detect input language (Uzbek/Russian) and respond in the SAME lan
 Output ONLY the OLX listing text. No explanations.`
 };
 
-// ==========================================
-// Telegram WebApp Validation (Web Crypto API)
-// ==========================================
-
-async function validateTelegramWebAppData(
-  telegramInitData: string, 
-  botToken: string
-): Promise<boolean> {
-  try {
-    const urlParams = new URLSearchParams(telegramInitData);
-    const hash = urlParams.get('hash');
-    if (!hash) return false;
-
-    urlParams.delete('hash');
-    
-    const params: string[] = [];
-    urlParams.forEach((value, key) => params.push(`${key}=${value}`));
-    params.sort();
-    
-    const dataCheckString = params.join('\n');
-    const encoder = new TextEncoder();
-
-    const secretKeyMaterial = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode('WebAppData'),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    
-    const secretKey = await crypto.subtle.sign(
-      'HMAC', 
-      secretKeyMaterial, 
-      encoder.encode(botToken)
-    );
-
-    const validationKey = await crypto.subtle.importKey(
-      'raw',
-      secretKey,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-
-    const signature = await crypto.subtle.sign(
-      'HMAC',
-      validationKey,
-      encoder.encode(dataCheckString)
-    );
-
-    const hex = Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-
-    return hex === hash;
-  } catch {
-    return false;
-  }
-}
+// Logic moved to shared lib
 
 // ==========================================
 // Rate Limiting with Supabase

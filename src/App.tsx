@@ -43,8 +43,11 @@ function App() {
     const initUser = async () => {
         try {
             if (telegramUser) {
+                // Set ID immediately from Telegram to avoid null constraint issues
+                setUser({ telegramId: telegramUser.id });
+                
                 const profile = await getUserProfile(telegramUser);
-                setUser(profile);
+                if (profile) setUser(profile);
                 
                 // Load History
                 useHistoryStore.getState().loadHistory();
@@ -233,6 +236,23 @@ function App() {
         onClose={() => setIsPremiumModalOpen(false)}
         telegramId={telegramUser?.id?.toString() || 'unknown'}
       />
+
+      {/* DEV TOOLS (Only in Localhost) */}
+      {import.meta.env.DEV && (
+        <div className="fixed bottom-2 right-2 z-[9999] flex flex-col gap-2">
+            <button 
+                onClick={() => {
+                    const { user, setUser } = useUserStore.getState();
+                    setUser({ isPremium: !user.isPremium });
+                    hapticFeedback('impact', 'heavy');
+                    toast.info(`DEV: Premium ${!user.isPremium ? 'Yoqildi' : 'Ochirildi'}`);
+                }}
+                className="bg-red-600/80 hover:bg-red-600 text-[10px] font-bold text-white px-3 py-2 rounded-full shadow-2xl backdrop-blur-md border border-white/20"
+            >
+                Toggle PRO
+            </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -168,39 +168,51 @@ export async function generateDescription(
         
         clearTimeout(timeoutId);
 
-        // 4. PARSE RESPONSE
-        let data: APISuccessResponse | APIErrorResponse;
+        // 4. HANDLE ERROR RESPONSES (Check this before parsing JSON)
+        if (!response.ok) {
+          // DEV MOCK FALLBACK (If API is missing locally)
+          if (import.meta.env.DEV && response.status === 404) {
+             console.log('🧪 API missing in DEV, using local mock response...');
+             await new Promise(r => setTimeout(r, 1000));
+             
+             const isRu = options?.language === 'ru';
+             const mockResponses: Record<string, string> = {
+                 telegram: isRu 
+                     ? `🔥 **ОТЛИЧНОЕ ПРЕДЛОЖЕНИЕ!**\n\n🏠 Объект: ${rawInput.substring(0, 30)}...\n\n✅ Сделан качественный ремонт\n✅ Отличная локация\n\n📞 Звоните: +998 (XX) XXX-XX-XX`
+                     : `🔥 **AJOYIB TAKLIF!**\n\n🏠 O'byekt: ${rawInput.substring(0, 30)}...\n\n✅ Sifatli ta'mirlangan\n✅ Zo'r lokatsiya\n\n📞 Tel: +998 (XX) XXX-XX-XX`,
+                 instagram: `🏡 Dream Home ✨\n\nCheck out: ${rawInput.substring(0, 20)}...\n\nDM for details! 📥 #realestate`,
+                 olx: isRu ? `Продается недвижимость.\n${rawInput}` : `Ko'chmas mulk sotiladi.\n${rawInput}`
+             };
+             
+             incrementLocalUsage();
+             return mockResponses[platform] || "Mock content...";
+          }
+
+          // Try to parse error data if possible
+          const errorData = await response.json().catch(() => ({ error: 'AI xizmatida xatolik', code: 'API_ERROR' }));
+          
+          if (errorData.code === 'RATE_LIMIT_EXCEEDED') {
+            throw new LimitExceededError(errorData.error || 'Kunlik limit tugadi', 0);
+          }
+          
+          if (response.status >= 500) {
+             throw new Error("Server error, retrying...");
+          }
+
+          throw new AIServiceError(errorData.error || 'AI xizmatida xatolik', errorData.code || 'API_ERROR');
+        }
+
+        // 5. PARSE SUCCESS RESPONSE
+        let data: APISuccessResponse;
         try {
           data = await response.json();
         } catch {
           throw new AIServiceError('Invalid response from server', 'PARSE_ERROR');
         }
 
-        // 5. HANDLE ERROR RESPONSES
-        if (!response.ok) {
-          const errorData = data as APIErrorResponse;
-          
-          if (errorData.code === 'RATE_LIMIT_EXCEEDED') {
-            throw new LimitExceededError(
-              errorData.error || 'Kunlik limit tugadi',
-              0
-            );
-          }
-          
-          // Only retry on 500s or timeouts, not 4xx client errors
-          if (response.status >= 500) {
-             throw new Error("Server error, retrying...");
-          }
-
-          throw new AIServiceError(
-            errorData.error || 'AI xizmatida xatolik',
-            errorData.code || 'API_ERROR'
-          );
-        }
-
         // 6. SUCCESS
         incrementLocalUsage();
-        return (data as APISuccessResponse).text;
+        return data.text;
 
       } catch (error: unknown) {
         clearTimeout(timeoutId);

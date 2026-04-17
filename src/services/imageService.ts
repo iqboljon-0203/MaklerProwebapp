@@ -780,10 +780,10 @@ export async function applyCustomWatermark(
     }
   }
   
-  // Apply MaklerPro branding for non-premium users - REMOVED per request
-  // if (!isPremium) {
-  //   drawMaklerProBranding(ctx, img.width, img.height);
-  // }
+  // Apply MaklerPro branding for non-premium users
+  if (!config.isPremium) {
+    drawMaklerProBranding(ctx, img.width, img.height);
+  }
   
   const blob = await canvasToBlob(canvas, 'webp', 0.9);
   
@@ -1205,4 +1205,33 @@ export async function processBatchWithWatermark(
   onProgress?.({ ...progress, results: [...results] });
 
   return results;
+}
+/**
+ * Forced branding for non-premium users
+ */
+function drawMaklerProBranding(
+    ctx: CanvasRenderingContext2D, 
+    width: number, 
+    height: number
+) {
+    ctx.save();
+    ctx.globalAlpha = 0.2; // Very subtle
+    ctx.fillStyle = '#FFFFFF';
+    
+    // Calculate size relative to image
+    const fontSize = Math.max(width, height) * 0.08;
+    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Position in center with rotation
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(-45 * Math.PI / 180);
+    
+    // Shadow for visibility on light images
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 10;
+    
+    ctx.fillText('MaklerPro', 0, 0);
+    ctx.restore();
 }

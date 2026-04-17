@@ -12,7 +12,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useUserStore } from '@/store';
+import { useUserStore, useAppStore } from '@/store';
+import { PremiumGate } from '@/components/features/PremiumGate';
 import { 
   uploadWatermarkLogo, 
   deleteWatermarkLogo, 
@@ -49,7 +50,7 @@ const SAMPLE_IMAGE_URL = 'https://images.unsplash.com/photo-1560448204-e02f11c3d
 // ===================================
 
 export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps) {
-  const { branding, setWatermarkSettings, setCustomLogoUrl, setTextWatermark } = useUserStore();
+  const { user, branding, setWatermarkSettings, setCustomLogoUrl, setTextWatermark } = useUserStore();
   const { t } = useTranslation();
   
   // State
@@ -217,7 +218,7 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
         logoUrl: branding.customLogoUrl || undefined,
         textWatermark: localTextWatermark,
         settings: localSettings,
-        isPremium: true, // Preview without MaklerPro branding
+        isPremium: user.isPremium, // Show real result (with watermark if free)
       });
       
       setPreviewUrl(result.preview);
@@ -353,14 +354,16 @@ export function BrandingSettings({ telegramId, onClose }: BrandingSettingsProps)
                         className="hidden"
                       />
                       
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
-                      >
-                        <Upload size={16} />
-                        {branding.customLogoUrl ? t('settings.upload_logo') : t('settings.upload_logo')}
-                      </button>
+                      <PremiumGate forceOpen={false}>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 rounded-xl font-medium hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-[0.98]"
+                        >
+                            <Upload size={16} />
+                            {branding.customLogoUrl ? t('settings.upload_logo') : t('settings.upload_logo')}
+                        </button>
+                      </PremiumGate>
                       
                       <p className="text-[10px] text-gray-400 mt-2 text-center">
                         {t('settings.upload_hint')}

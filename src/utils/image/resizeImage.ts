@@ -105,32 +105,34 @@ export async function resizeImage(
 // File Helper
 // ==========================================
 
-export function createImageFromFile(file: File): Promise<ImageFile> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+/**
+ * Creates ImageFile object from File.
+ * Optimized to use ObjectURL instead of DataURL to save memory.
+ */
+export async function createImageFromFile(file: File): Promise<ImageFile> {
+  const preview = URL.createObjectURL(file);
+  
+  try {
+    const img = await loadImage(preview);
     
-    reader.onload = async (e) => {
-      const preview = e.target?.result as string;
-      
-      try {
-        const img = await loadImage(preview);
-        
-        resolve({
-          id: crypto.randomUUID(),
-          file,
-          preview,
-          width: img.width,
-          height: img.height,
-          size: file.size,
-          name: file.name,
-          type: file.type,
-        });
-      } catch (error) {
-        reject(error);
-      }
+    // Safety check: Prevent massive resolutions that crash canvas (e.g. > 100MP)
+    if (img.width * img.height > 100 * 1000 * 1000) {
+        URL.revokeObjectURL(preview); // Cleanup
+        throw new Error('Image dimensions too large (>100MP)');
+    }
+
+    return {
+      id: crypto.randomUUID(),
+      file,
+      preview, // Note: We keep this ObjectURL as preview. Caller must manage it.
+      width: img.width,
+      height: img.height,
+      size: file.size,
+      name: file.name,
+      type: file.type,
     };
-    
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  } catch (error) {
+    URL.revokeObjectURL(preview);
+    throw error;
+  }
 }

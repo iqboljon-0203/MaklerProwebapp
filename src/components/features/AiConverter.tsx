@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useHistoryStore, useAppStore, useUserStore } from '@/store';
-import { useTelegram } from '@/hooks';
+import { useTelegram, useNetwork } from '@/hooks';
 import { 
   generateDescription, 
   LimitExceededError, 
@@ -446,11 +446,13 @@ export function AiConverter() {
   const { t, i18n } = useTranslation();
   const { setProcessing, isProcessing } = useAppStore();
   const { user } = useUserStore();
+  const { isOnline } = useNetwork();
   const { addItem } = useHistoryStore();
   const { hapticFeedback, user: telegramUser } = useTelegram();
   
   const [rawInput, setRawInput] = useState('');
   const [platform, setPlatform] = useState<Platform>('telegram');
+  const [tone, setTone] = useState<'expert' | 'emotional' | 'minimalist'>('expert');
   const [generatedText, setGeneratedText] = useState('');
   const [copied, setCopied] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
@@ -462,6 +464,13 @@ export function AiConverter() {
   }, [user.dailyGenerations, user.isPremium]);
 
   const handleGenerate = async () => {
+    if (!isOnline) {
+      toast.error(t('common.no_internet'), {
+        description: 'Internet connection required to use AI.'
+      });
+      return;
+    }
+
     if (!rawInput.trim()) {
       toast.warning(t('modules.ai.enter_text'), {
         description: t('modules.ai.input_placeholder')
@@ -474,7 +483,8 @@ export function AiConverter() {
       hapticFeedback('impact');
       
       const result = await generateDescription(rawInput, platform, { 
-        language: (i18n.language === 'ru' ? 'ru' : 'uz') 
+        language: (i18n.language === 'ru' ? 'ru' : 'uz'),
+        tone: tone
       });
       setGeneratedText(result);
       
@@ -641,6 +651,35 @@ export function AiConverter() {
             />
           </div>
 
+          {/* Tone Selector */}
+          <div>
+            <Label className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 block ml-1">
+              ✍️ {t('modules.ai.tone') || 'Writing Style'}
+            </Label>
+            <div className="flex p-1 bg-gray-100 dark:bg-black/40 rounded-xl border border-gray-200 dark:border-white/5">
+              {[
+                { id: 'expert', label: 'Ekspert' },
+                { id: 'emotional', label: 'Hissiyotli' },
+                { id: 'minimalist', label: 'Minimalist' }
+              ].map((tStyle) => (
+                <button
+                  key={tStyle.id}
+                  onClick={() => {
+                    setTone(tStyle.id as any);
+                    hapticFeedback('selection');
+                  }}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all ${
+                    tone === tStyle.id
+                      ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tStyle.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Visual Platform Selector */}
           <div>
             <Label className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 block ml-1">
@@ -677,7 +716,7 @@ export function AiConverter() {
         <motion.div whileTap={{ scale: 0.98 }}>
           <Button
             onClick={handleGenerate}
-            disabled={isProcessing || !rawInput.trim() || !canGenerate}
+            disabled={isProcessing || !rawInput.trim() || !canGenerate || !isOnline}
             size="lg"
             className={`w-full py-6 font-bold text-lg rounded-2xl shadow-xl transition-all duration-300 ${
               canGenerate 
@@ -695,7 +734,7 @@ export function AiConverter() {
             ) : (
               <>
                 <Sparkles className="mr-2 h-6 w-6" />
-                {t('modules.ai.action')}
+                {isOnline ? t('modules.ai.action') : t('common.no_internet')}
               </>
             )}
           </Button>
