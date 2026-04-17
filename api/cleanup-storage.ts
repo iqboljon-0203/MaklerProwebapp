@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs',
 };
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;

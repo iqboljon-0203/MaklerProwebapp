@@ -187,6 +187,7 @@ bot.command('start', async (ctx) => {
           content.premium_desc || "Premium Subscription",
           "full_premium_access",
           "", // provider_token
+          "premium", // start_parameter
           "XTR", // currency
           [{ label: "Premium (1 month)", amount: 200 }] // prices
       );
@@ -229,6 +230,7 @@ bot.command('premium', async (ctx) => {
         content.premium_desc || "Premium Subscription",
         "full_premium_access",
         "", // provider_token (MUST BE EMPTY for Stars)
+        "premium",
         "XTR", // currency
         [{ label: "Premium (1 month)", amount: 200 }] // prices
     );
@@ -247,6 +249,7 @@ bot.on('callback_query:data', async (ctx) => {
             content.premium_desc || "Premium Subscription",
             "full_premium_access",
             "", // provider_token
+            "premium", // start_parameter
             "XTR", // currency
             [{ label: "Premium Subscription", amount: 200 }] // prices
         );
