@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { validateTelegramWebAppData } from './lib/telegram-utils';
+import { validateTelegramWebAppData } from './lib/telegram-utils.js';
 
 export const config = {
   runtime: 'edge',
@@ -160,13 +160,13 @@ export default async function handler(request: Request): Promise<Response> {
     
     const validation = validateRequest(requestBody);
     if (!validation.valid) {
-      return new Response(JSON.stringify({ error: validation.error, code: 'INVALID_REQUEST' }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: (validation as any).error, code: 'INVALID_REQUEST' }), { status: 400, headers: corsHeaders });
     }
 
     // Generation Logic
-    // Generation Logic
+    const { rawInput, platform, previousText, instruction, language = 'uz', tone = 'expert' } = (validation as any).data;
+    
     const targetLangName = language === 'ru' ? 'Russian' : 'Uzbek';
-    const { rawInput, platform, previousText, instruction, tone = 'expert' } = validation.data;
 
     let systemPrompt = SYSTEM_PROMPTS[platform];
     systemPrompt += `\n\nCRITICAL RULE: The output MUST be in ${targetLangName} language.`;

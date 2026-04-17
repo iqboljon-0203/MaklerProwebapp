@@ -1,7 +1,7 @@
 import { Bot, webhookCallback } from 'grammy';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { BotContext, DBUser, PaymentRecord } from './types';
+import { BotContext, DBUser, PaymentRecord } from './types.js';
 
 // ==========================================
 // CONFIGURATION & CLIENTS

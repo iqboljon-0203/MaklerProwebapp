@@ -3,7 +3,7 @@ import { IncomingForm } from 'formidable';
 import fs from 'fs';
 import FormData from 'form-data';
 import fetch from 'node-fetch';
-import { validateTelegramWebAppData } from './lib/telegram-utils';
+import { validateTelegramWebAppData } from './lib/telegram-utils.js';
 
 export const config = {
   api: {
